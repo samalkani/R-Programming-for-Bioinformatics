@@ -1,0 +1,666 @@
+# 1. Variant Analysis and Genomic Data Interpretation
+
+# In recent years, the field of genomics has experienced exponential growth, driven
+# by advancements in high-throughput sequencing technologies and the lowering of 
+# costs of genomic data generation. As a result, vast amounts of genomic data are 
+# now accessible for analysis, with applications spanning from basic research to 
+# clinical diagnostics. Variant analysis-determining genetic variants' significance-
+# is a critical component of genomic studies, especially in understanding disease 
+# etiology and therapeutic responses. Un this chapter, we will explore the 
+# fundamentals of variant analysis and demonstrate how to interpret genomic data 
+# using the R programming language.
+
+# 1. A. Understanding Genetic Variants
+
+# Genetic variants are alterations in the nucleotide sequence of DNA that make 
+# individuals unique. They occur in various forms, including:
+
+# * __Single Nucleotide Polymorphisms (SNPs)__: The most common type of genetic 
+# variation, involving a change in a single nucleotide.
+
+# * __Insertions and deletions (Indels)__: These variants involve the addition or 
+# loss of nucleotides in the genetic sequence.
+
+# * __Copy Number Variants (CNVs)__: Variations in the number of copies of a 
+# particular gene or genomic region.
+
+# * __Structural Variants__: Larger-scale alterations that can affect long 
+# segments of DNA.
+
+# Understanding these variants' biological effects and clinical relevance is 
+# essential for developing personized medicine strategies and targeted therapies.
+
+# 1. B. R programming for Genomic Analysis
+
+# R is powerful environment for statistical computing and graphics, making it a 
+# popular choice for data analysis in bioinformatics and genomics. Its comprehensive 
+# ecosystem for manipulating, analyzing and visualizing data allows researchers 
+# to efficiently interpret complex genomic data sets.
+
+# 1. B. I. Install and load required packages
+
+# To perform variant analysis, several R packages can enhance our workflow. 
+# Below are key packages commonly used in genomic data interpretation:
+
+# install.packages(c("BiocManager", "tidyverse"))
+
+# BiocManager::install(c("VariantAnnotation", "GenomicRanges", "biomaRt"))
+
+library(tidyverse)
+library(VariantAnnotation)
+library(GenomicRanges)
+library(biomaRt)
+
+# 1. B. II. Loading Variant Data
+
+# Variants can be stored in various formats, such VCF (Variant Call Format). 
+# Loading VCF files into R is straightforward with the "VariantsAnnotation" 
+# package:
+
+# Loading Exome vcf file
+vcf_file <- "D:/Ajay Files/R Programming for Bioinformatics/Chapter 10/Axiom_Exome_Plus.genotypes.all_populations.poly.vcf/Axiom_Exome_Plus.genotypes.all_populations.poly.vcf"
+vcf_data <- readVcf(vcf_file, "hg19")
+vcf_data
+
+# Loading Indels vcf file
+vcf_file_1 <- "D:/Ajay Files/R Programming for Bioinformatics/Chapter 10/Mills_and_1000G_gold_standard.indels.hg19.sites.txt"
+vcf_data_1 <- readVcf(vcf_file_1, "hg19")
+vcf_data_1
+
+# Loading Exome vcf file
+vcf_file_2 <- "D:/Ajay Files/R Programming for Bioinformatics/Chapter 10/Mutect2-exome-panel.txt"
+vcf_data_2 <- readVcf(vcf_file_2, "hg19")
+vcf_data_2
+
+# 1. B. III. Overview of Variant Data Structure
+
+# Once the VCF file is loaded, we can inspect its structure. The "vcf_data" object 
+# contains important components including the header, sample names, and the genetic 
+# variants themselves.
+
+# Inspect VCF data
+# summarize(vcf_data) # cannot be used for "CollapsedVCF" object
+
+# Load library
+library(dplyr)
+
+# Example: extracting variant info from a VCF object
+vcf_df <- data.frame(
+  CHROM = as.character(seqnames(rowRanges(vcf_data))),
+  POS = start(rowRanges(vcf_data)),
+  REF = as.character(ref(vcf_data)),
+  ALT = sapply(alt(vcf_data), function(x) paste(as.character(x), collapse=",")),
+  QUAL = qual(vcf_data),
+  FILTER = filt(vcf_data)
+)
+
+dim(vcf_df)
+
+# Now you can use dplyr's summarise on your data frame
+# Example: count variants per chromosome
+summary_df <- vcf_df %>%
+  group_by(CHROM) %>%
+  summarise(variant_count = n(), .groups = 'drop')
+
+head(summary_df)
+head(rowRanges(vcf_data))
+
+# 1. C. Analyzing Genetic Variants
+
+# 1. C. I. Filtering Variants
+
+# Before diving into interpretation, it is crucial to filter variants based on 
+# predefined criteria, such as quality measures and allele frequency. This ensures 
+# that we focus on biologically relevant variants.
+
+# Filter variants based on quality and depth = Zero results
+filtered_variants <- vcf_data[info(vcf_data)$QUAL > 30 & rowSums(is.na(geno(vcf_data)$GT)) == 0]
+filtered_variants
+
+# Filtering NA's = small data set
+filtered_variants <- vcf_data[rowSums(is.na(geno(vcf_data)$GT)) == 0]
+filtered_variants
+
+# 1. C. II. Variant Annotation
+
+# Variant annotation involves adding biological context to the genetic variants, 
+# such as gene associations and functional impacts. The "biomaRt" package allows 
+# querying the Ensembl database for additional data:
+
+# Annotate variants
+variants_df <- as.data.frame(rowRanges(filtered_variants))
+mart = useEnsembl('ENSEMBL_MART_ENSEMBL')
+mart <- useEnsembl(biomart = "ensembl", dataset = "hsapiens_gene_ensembl")
+gene_info <- getBM(attributes = c("external_gene_name", "chromosome_name", "start_position", "end_position"), 
+                   filters = "chromosomal_region", values = c("1:70000:200000"), mart = mart)
+annotated_variants <- merge(variants_df, gene_info, by.x = "seqnames", by.y = "chromosome_name")
+
+# 1. D. Visualizing Genomic Data
+
+# Visualizing is a powerful tool for interpreting complex genomic data. The "ggplot2" 
+# package allows researchers to create informative plots to illustrate the distribution 
+# and effects of variants.
+
+# 1. D. I. Distribution of Variants
+
+# One common visualization is plotting the distribution of variants across 
+# chromosomes:
+
+
+# Plot variant distribution
+ggplot(annotated_variants, aes(x = start_position)) +
+  geom_histogram(binwidth = 1000, fill = "steelblue", color = "black") +
+  facet_wrap(~ seqnames, scales = "free_x") +  # Separate panels for each chromosome
+  labs(
+    title = "Distribution of Genetic Variants",
+    x = "Genomic Position (bp)",
+    y = "Variant Count"
+  ) +
+  theme_minimal()
+
+# 1. D. II. Effect of Variants
+
+# Another useful visualization is assessing the effect of variants on specific 
+# genes. This can be performed using a boxplot to compare gene expression levels:
+
+# Simulated expression data
+# Parameters
+set.seed(42)  # reproducibility
+n_genes <- 389994   # number of genes
+n_samples <- 1     # 2 control, 2 treated
+total_counts <- 38999400
+
+# Simulate counts from a negative binomial distribution
+raw_counts <- matrix(
+  rnbinom(n_genes * n_samples, mu = 50, size = 1/0.2),  # mean=50, dispersion=0.2
+  nrow = n_genes,
+  ncol = n_samples
+)
+
+head(raw_counts)
+
+# Scale counts so total sum matches exactly 1,013,912
+scale_factor <- total_counts / sum(raw_counts)
+scale_factor
+counts_scaled <- round(raw_counts * scale_factor)
+head(counts_scaled)
+
+# Assign gene IDs
+rownames(counts_scaled) <- paste0("Gene", seq_len(n_genes))
+colnames(counts_scaled) <- c("Sample")
+head(counts_scaled)
+
+# Write count_scaled matrix to a CSV file (automatic conversion from matrix to data frame)
+write.csv(counts_scaled, file = "D:/Ajay Files/R Programming for Bioinformatics/Chapter 10/gene_expression.csv")
+
+# Example: Visualizing Gene Expression Data
+gene_expression <- read.csv("gene_expression.csv")
+head(gene_expression, n = 1)
+
+# Change X column to Genes
+names(gene_expression)[names(gene_expression) == 'X'] <- 'Genes'
+head(gene_expression, n = 1)
+dim(gene_expression)
+
+# Load Library
+library(tidyr)
+
+# Conversion of wide data set to a long data set
+gene_expression <- pivot_longer(gene_expression, cols = c("Sample"), 
+                                names_to = "sample", values_to = "expression_level")
+head(gene_expression, n =1)
+
+gene_expression <- data.frame(annotated_variants,
+                              Expression_Level = gene_expression$expression_level)
+head(gene_expression, n = 3)
+
+# Assuming expression_levels is a data frame with gene expression data
+
+boxplot_data <- gene_expression
+
+ggplot(boxplot_data, 
+       aes(x = external_gene_name, y = Expression_Level, fill = REF)) +
+  geom_boxplot() + 
+  labs(title = "Gene Expression by Variant Effect", x = "Gene", y = "Expression Level")
+
+# Variant analysis and interpretation are integral to unlocking the secrets hidden 
+# within genomic data, Through the advanced capabilities of R and its bioinformatics 
+# packages, researchers can analyze, annotate, and visualize variants to derive
+# meaningful conclusions. As the field continues to evolve, mastering these data
+# interpretation technique will be essential for anyone seeking to harness the 
+# power of genomics in research or clinical settings.
+
+# 1. E. Further Reading
+
+# For readers interested in deepening their understanding of variant analysis 
+# using R, we recommend the following resources:
+
+# * __"Bioconductor: The R/Bioconductor ecosystem for genomic data analysis"__ -
+# an excellent resource for genomic data analysis with R.
+
+# * __"R programming for Bioinformatics" by Robert Gentleman__ - this book provides 
+# a comprehensive introduction to using R in the context of bioinformatics.
+
+# With the foundations laid in this chapter, you are now equipped to explore and 
+# interpret genomic data using R efficiently.
+
+# 1. F. Conclusion
+
+# In this chapter, we have covered the essentials of variant analysis and genomic 
+# data interpretation using R. We delved into understanding different types of
+# genetic variants, how to load and filter VCF data, the importance of variant
+# annotation, and the power of visualization for data interpretation.
+
+# 2. Calling and Annotating Variants using VariantAnnotation.
+
+# In modern bioinformatics, the detection and annotation of genetic variants are 
+# pivotal for understanding the genetic basis of diseases, population genomics, 
+# and personalized medicine. With the advent of next-generation sequencing (NGS),
+# variant calling and subsequent annotation have become routine steps in the 
+# genomic analysis pipeline. R, a versatile programming language and environment,
+# provides powerful packages for handling bioinformatics data, among which the 
+# "VariantAnnotation" package stands out. This chapter will guide you through the 
+# process of calling and annotating variants using "VariantAnnotation" in R, 
+# equipping you with skills needed to analyze genomic variants effectively.
+
+# 2. A.  Installing and Loading the VariantAnnotation Package.
+
+# Before diving into variant calling and annotation, ensure that you have the 
+# "VariantAnnotation" package installed in your R environment. You can easily 
+# install it from Bioconductor by executing the folowing commands:
+
+# if (!require("BiocManager", quietly = TRUE))
+#   install.packages("BiocManager")
+# BiocManager::install(version = "3.22")
+
+# BiocManager::install(c("VariantAnnotation"))
+
+# Once installed, load the package along with other necessary libraries:
+
+library(VariantAnnotation)
+library(GenomicRanges)
+library(dplyr)
+library(ggplot2) # For visualization if needed
+
+# 2. B. Importing Variant Calling Format (VCF) Files
+
+# Variant Call Format (VCF) files serve as common data structure for storing 
+# variant data. VCF files contain important information regarding the position 
+# and type of variants, along with other annotations. To import a VCF file into R, 
+# use the "readVcf()" function:
+
+# Loading Indels vcf file
+vcf_file_1 <- "D:/Ajay Files/R Programming for Bioinformatics/Chapter 10/Mills_and_1000G_gold_standard.indels.hg19.sites.txt"
+vcf_data_1 <- readVcf(vcf_file_1, "hg19") # Replace "hg19" with your reference genome
+
+
+# After loading the VCF file, it's crucial to explore its structure for further 
+# analysis:
+
+head(vcf_data_1)
+
+# 2. C. Understanding the VCF Structure
+
+# A VCF file consists of a header and a body. The header contains metadata and 
+# format definitions, while the body includes the actual variant calls. Key 
+# columns you'll find in VCF format include:
+
+# * __CHROM:__ chromosome
+
+# * __POS:__ position
+
+# * __ID:__ variant identifier
+
+# * __REF:__ reference allele
+
+# * __ALT:__ alternate allele
+
+# * __QUAL:__ quality score
+
+# * __FILTER:__ filter status
+
+# * __INFO:__ additional annotations
+
+# Familiarizing yourself with these fields will help you utilize the "Variant 
+# Annotation" functions effectively.
+
+# 2. D. Variant Calling
+
+# Variant calling typically involves identifying differences between sequenced 
+# genomes and the reference genome. While "VarinatAnnotation" does not perform 
+# variant calling by itself, it provides tools for manipulating the results 
+# obtained from variant callers such as GATK, FreeBayes, or SAMtools. The key 
+# functions include filtering and sub-setting variants based on specific criteria.
+
+# To filter variants based on quality score, for instance, you would use:
+
+dim(vcf_data_1)
+filtered_variants <- vcf_data_1[info(vcf_data_1)$QUAL >= 30]
+head(filtered_variants)
+dim(filtered_variants)
+
+# This line filters out variants with a quality score lower than 30.
+
+# 2. E. Annotating Variants
+
+# Variant annotation enriches your data with biological context, linking variants 
+# to genes, pathways, and clinical significance. The "VariantAnnotation" package 
+# provides essential functions to annotate variants with data from external 
+# resources.
+
+# 2. E. I. Using the "annovar" or "dbSNP" Database for Annotation.
+
+# To annotate variants, you can use databases like ANNOVAR or dbSNP. Below is an
+# example of how you might approach integrating dbSNP data:
+
+# Install Packages
+# BiocManager::install("txdbmaker")
+# BiocManager::install("RMariaDB")
+# BiocManager::install("GenomeInfoDbData")
+
+# Load Packages
+library(VariantAnnotation)
+library(GenomicFeatures)
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+library(txdbmaker)
+library(RMariaDB)
+library(GenomeInfoDbData)
+
+# Example of annotating with dbSNP
+
+# Read your VCF into a single data frame or data.table from the start
+vcf_file <- "D:/Ajay Files/R Programming for Bioinformatics/Chapter 10/Mutect2-exome-panel.txt"
+
+# Read VCF
+vcf <- readVcf(vcf_file, "hg19")
+vcf
+
+# Convert to data.frame
+vcf_df <- as.data.frame(rowRanges(vcf))
+head(vcf_df)
+
+# vcf_df is not a pure data frame of atomic vectors convert to a proper data frame
+# Flatten list columns to character
+vcf_df_flat <- data.frame(lapply(vcf_df, function(col) {
+  if (is.list(col)) {
+    sapply(col, function(x) paste(x, collapse = ","))  # join list elements
+  } else {
+    col
+  }
+}), stringsAsFactors = FALSE)
+
+# Write vcf_df dataframe to a CSV file
+write.csv(vcf_df_flat, file = "D:/Ajay Files/R Programming for Bioinformatics/Chapter 10/vcf_df.csv")
+
+# Example: annotate with transcript database
+txdb <- makeTxDbFromUCSC(genome = "hg19", tablename = "refGene")
+
+# Annotate
+annotations <- locateVariants(rowRanges(vcf), txdb, AllVariants())
+
+head(annotations)
+
+# 2. E. II. Adding Gene Annotations
+
+# To include additional gene annotations, leverage the "TxDb" package, which contains 
+# comprehensive gene information. Build a transcript database and annotate your VCF 
+# as follows:
+
+# Install Package
+BiocManager::install("TxDb.Hsapiens.UCSC.hg19.knownGene")
+
+# Load Libraries
+library(TxDb.Hsapiens.UCSC.hg19.knownGene)
+library(GenomicFeatures)
+
+# Assign the TxDb object to a variable
+txdb <- TxDb.Hsapiens.UCSC.hg19.knownGene
+
+# Extract genomic ranges for all genes
+gr <- genes(txdb)
+
+# Inspect the first few entries
+head(gr)
+
+# What’s happening here:
+  
+# * TxDb.Hsapiens.UCSC.hg19.knownGene is a pre-built transcript database for the 
+# human genome (hg19 build). 
+
+# * genes(txdb) returns a GRanges object where each row represents a gene’s genomic 
+# coordinates (chromosome, start, end, strand).
+
+# * The mcols(gr) will contain the gene IDs (Entrez IDs in this case).
+
+# If you want to link these to gene symbols (more human-readable names), you can do:
+
+# Map Entrez IDs to gene symbols
+gene_symbols <- mapIds(org.Hs.eg.db,
+                       keys = as.character(gr$gene_id),
+                       column = "SYMBOL",
+                       keytype = "ENTREZID",
+                       multiVals = "first")
+mcols(gr)$symbol <- gene_symbols
+
+head(gr)
+
+# Read your table-based VCF
+# Example: columns = CHR, POS, REF, ALT
+vcf_df <- read.csv("vcf_df.csv", header = TRUE)
+head(vcf_df)
+
+# Create GRanges from your table
+vcf_gr <- GRanges(
+  seqnames = vcf_df$seqnames,  # or vcf_df$seqnames if that's your column name
+  ranges = IRanges(start = vcf_df$start, end = vcf_df$end)
+)
+
+# Add REF and ALT as metadata columns
+mcols(vcf_gr)$REF <- vcf_df$REF
+mcols(vcf_gr)$ALT <- vcf_df$ALT
+
+head(vcf_gr)
+
+
+# Ensure chromosome naming style matches
+library(GenomeInfoDb)
+seqlevelsStyle(vcf_gr) <- seqlevelsStyle(gr)
+
+# Find overlaps
+hits <- findOverlaps(vcf_gr, gr)
+
+# Create annotated variant table
+variant_gene_df <- data.frame(
+  chr = as.character(seqnames(vcf_gr)[queryHits(hits)]),
+  pos = start(vcf_gr)[queryHits(hits)],
+  ref = mcols(vcf_gr)$REF[queryHits(hits)],
+  alt = mcols(vcf_gr)$ALT[queryHits(hits)],
+  gene_id = gr$gene_id[subjectHits(hits)],
+  gene_symbol = gr$symbol[subjectHits(hits)]
+)
+
+# 6. View results
+head(variant_gene_df)
+
+# 2. F. Visualizing Variants
+
+# Visualization plays a crucial role in understanding varinat distributions and 
+# their implications. You can create plots to visualize the frequency of variants 
+# across different genomic regions utilizing "ggplot2".
+
+variant_counts <- data.frame(table(seqnames(vcf)))
+colnames(variant_counts) <- c("Chromosome", "VariantCount")
+
+library(ggplot2)
+
+ggplot(variant_counts, aes(x = Chromosome, y = VariantCount)) + 
+  geom_bar(stat = "identity") + 
+  theme_minimal() + 
+  labs(title = "Distribution of Variants Across Chromosomes", x = "Chromosome", 
+       y = "Number of Variants")
+
+# 2. G. Exporting the Results
+
+# After calling and annotating variants, it's essential to save your results for 
+# further analysis. Use the "writeVcf()" function to export your annotated VCF.
+
+# Write variant_gene_df to a CSV file using write.csv
+output_file <- "D:/Ajay Files/R Programming for Bioinformatics/Chapter 10/variant_gene_df.csv"
+write.csv(variant_gene_df, file = output_file)
+
+# In this chapter, we explored the fundamental steps involved in calling and 
+# annotating variants using the "VariantAnnotation" package in R. We covered 
+# importing annotations, and visualizing the data for comprehensive analysis
+
+# 3. Exploring SNPs, Indels, and Their Biological Impact.
+
+# Understanding these variations provides insight into evolutionary mechanisms,
+# disease susceptibility, and the development of targeted therapies. This chapter 
+# delves into the methodologies for identifying and analyzing SNPs and indels, 
+# employing the R programming language for data exploration, visualization, and 
+# biological interpretation.
+
+# 3. A. Understanding SNPs and Indels
+
+# 3. A. I. SNPs: Definition and Significance
+
+# SNPs are variations at a single nucleotide position in the genome, where different 
+# individuals may have different nucleotides (e.g. A, T, C or G). These variations 
+# can affect gene function, regulation or expression, contributing to phenotypic 
+# diversity. Their significance extends beyond individual traits, as SNPs can serve 
+# as biomarkers for diseases, influence drug response, and inform about population 
+# structure.
+
+# 3. A. II. Indels: Definition and Biological Relevance.
+
+# Indels refer to insertions and deletions of small segments of DNA, which can
+# range from a single nucleotide to several base pairs. Like SNPs, indels can 
+# disrupt gene function and contribute to genetic diversity. Their impact on the 
+# genome can lead to frameshifts in coding sequences, altering protein structures 
+# and functions, thereby playing a crucial role in evolution and adaptation.
+
+# 3. B. Data Acquistion and Preparation.
+
+# Before analyzing SNPs and indels, researchers must obtain suitable genomic 
+# datasets. This section covers approaches for retriving genomic data from public 
+# repositories, such as the Genome Aggregation Database (gnomAD), the 1000 Genomes 
+# Project, and Ensembl.
+
+# 3. B. I. Installing Required Packages in R.
+
+# The following R packages are essential for data analysis and visualization:
+
+# Install Packages
+# install.packages(c("tidyverse", "Biostrings", "ggplot2", "GenomicRanges", 
+#                    "VariantAnnotation"))
+
+# 3. B. II. Importing Genomic Data
+
+# Using the "VariantAnnotation" package, genomic data can be read into R:
+
+# Load Library
+library(VariantAnnotation)
+
+# Loading Exome vcf file
+vcf_file_2 <- "D:/Ajay Files/R Programming for Bioinformatics/Chapter 10/Mutect2-exome-panel.txt"
+vcf_data_2 <- readVcf(vcf_file_2, "hg19")
+vcf_data_2
+
+# 3. C. Data Preprocessing
+
+# After loading the data, it is crucial to preprocess it - filtering for quality,
+# selecting relevant columns, and transforming  formats where necessary. For 
+# example, we can convert VCF data to a more manageable data frame format:
+
+snp_data <-as.data.frame(info(vcf_data_2))
+head(snp_data)
+
+snp_df <- as.data.frame(rowRanges(vcf_data_2))
+head(snp_df)
+
+# 3. D. Visualizing SNPs and Indels
+
+# Effective visualization helps in interpreting complex data. In this section, 
+# we utilize  "ggplot2" for visual exploration.
+
+# 3. D. I. Plotting SNP Distribution
+
+# To visualize the distrubution of SNPs across the genome:
+
+# Load Library
+library(ggplot2)
+
+ggplot(snp_df, aes(x = start, fill = as.factor(REF))) + geom_bar() + 
+  labs(title = "SNP Distribtution Across the Genome", x = "Position", y = "Count") +
+  theme_minimal()
+
+# 3. D. II. Visualizing Indel Frequency
+
+# In a similar manner, plots can be generated to reveal the frequency of indels:
+
+# Load Library
+library(VariantAnnotation)
+
+# Loading Indels vcf file
+vcf_file_1 <- "D:/Ajay Files/R Programming for Bioinformatics/Chapter 10/Mills_and_1000G_gold_standard.indels.hg19.sites.txt"
+vcf_data_1 <- readVcf(vcf_file_1, "hg19")
+vcf_data_1
+
+# Remove duplicate
+# Extract GRanges from VCF
+rr <- rowRanges(vcf_data_1)
+
+# Make the names unique
+names(rr) <- make.unique(names(rr))
+
+# Convert rr to data frame
+indel_df <- as.data.frame(rr)
+head(indel_df)
+
+# Convert to data.frame
+# indel_df <- as.data.frame(rowRanges(vcf_data_1), row.names = NULL)
+# head(indel_df)
+
+# Dataset too large to produce the graph
+# ggplot(indel_df, aes(x = start, fill = as.factor(REF))) + geom_bar() + 
+#   labs(title = "Indel Frequency Distribution", x = "Position", y = "Count") +
+#   theme_minimal()
+
+# 3. E. Analyzing Biological Impact
+
+# The biological implications of SNPs and indels are immense, influencing gene 
+# function and disease predisposition. This section outlines methods for assessing 
+# their effects.
+
+# 3. E. I. Functional Annotation
+
+# Using Bioconductor tools, one can perform functional annotation to predict the 
+# impact of genetic variants. For instance, we can leverage dbSNP and the Ensembl 
+# Variant Effect Predictor.
+
+# 3. E. II. Association Studies
+
+# To investigate SNP associations with phenotypic traits or diseases, various 
+# statistical tests can be conducted, such as Chi-square tests or logistic regression 
+# models.
+
+# Chi-square test example
+# variant_counts <- table(snp_data$PHENOTYPE, snp_data$GENOTYPE)
+# chisq.test(variant_counts)
+
+# 3. E. III. Pathway Analysis
+
+# Advanced analyses can include pathway enrichment analysis to determine if 
+# significant variants cluster in specific biological pathways, potentially 
+# shedding light on mechanisms underlying diseases
+
+
+
+
+
+
+
+
+
+

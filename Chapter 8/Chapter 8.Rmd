@@ -1,0 +1,644 @@
+---
+title: "Chapter 8 - Gene Expression Analysis: RNA-Seq"
+author: "Sasha Ajay Malkani"
+date: "2026-01-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1. Gene Expression Analysis: RNA-Seq
+
+As one of the cornerstone technologies in molecular biology, RNA sequencing 
+(RNA-Seq) has revolutionized the way we analyze gene expression. RNA-Seq allows 
+for the quantification of RNA levels across the transcriptome, providing insights
+into gene regulation, alternative splicing, and even the discovery of novel 
+transcripts. Given the complexity of RNA-Seq data sets, proper analysis is 
+essential to extract meaningful biological insights. This chapter delves into 
+the key steps involved in RNA-Seq data analysis using the R programming language,
+a powerful tool for statistical computing and graphics.
+
+### 1. A. Setting the Stage: Data Acquistion
+
+The journey of RNA-Seq analysis begins with data aquisition. RNA-Seq experiments
+can be performed in various organisms and conditions. The raw output typically 
+consists of a series of FASTQ files, each corresponding to a sequencing run. 
+These files contain both the sequence information and the quality scores for 
+the reads. Before diving into analysis, it;s crucial to ensure data integrity 
+and quality.
+
+### 1. B. Quality Control
+
+Quality Control (QC) is a vital step in RNA-Seq analysis. Tools such as FastQC 
+and MultiQC can be used to visualize the quality of sequence reads. In R, the 
+"Short Read" and "rtracklayer" packages can be employed to import and manipulate 
+FASTQ files. Basic QC metrics include:
+
+* Read length distribution
+
+* Base quality scores
+
+* Sequence duplication levels
+
+* Adapter contamination
+
+#### 1. B. I. R code example for quality control using FastQC:
+
+```{r 1. B. I. R code example for quality control using FastQC}
+# Load library
+library(ShortRead)
+library(dada2)
+
+# Define the file path
+fastq_file <- "D:/Ajay Files/R Programming for Bioinformatics/Chapter 8/Thale Cress genome/SRR7508943.fastq/SRR7508943.fastq"
+
+# Load the FASTQ file
+fastq_data <- readFastq(fastq_file)
+
+# Inspect the first few reads
+head(fastq_data)
+
+# Plot read quality
+plotQualityProfile(fastq_file, n = 1013912)
+
+```
+
+### 1. C. Preprocessing: Trimming and Alignment
+
+Following QC, pre-processing steps such as trimming and alignment are necessary.
+Read trimming involves removing low-quality bases and adapter sequences, often 
+done using tools like Trimmomatic or Cutadapt, which can be run outside of R. 
+Once reads are trimmed, they must be aligned to reference genome.
+
+#### 1. C. I. Alignment Tools
+
+The R package "Rsubread" provides functionalities to perform read alignment 
+using methods like subread, which is both fast and accurate. Once aligned, the 
+output can be a BAM file containing the mapped reads.
+
+R code for aligning reads:
+
+```{r 1. C. I. Alignment Tools}
+# Install package
+# BiocManager::install("Rsubread")
+
+# Install seqinr if not already installed
+# install.packages("seqinr")
+
+# Load Libraries
+library(Rsubread)
+library(seqinr)
+
+# read.fasta() reads sequences from a FASTA-format file (including .fna)
+# seqtype = "DNA" tells it the sequences are DNA
+# as.string = TRUE keeps each sequence as a single string
+# write.fasta() writes the sequences to a new FASTA file
+# names(sequences) uses the original identifiers for FASTA headers
+
+# Specify input and output file paths
+input_file <- "D:/Ajay Files/R Programming for Bioinformatics/Chapter 8/Thale Cress genome/ncbi_dataset/ncbi_dataset/data/GCA_000001735.2/GCA_000001735.2_TAIR10.1_genomic.fna"
+output_file <- "D:/Ajay Files/R Programming for Bioinformatics/Chapter 8/GCA_000001735.2_TAIR10.1_genomic.fa"
+
+# Read sequences from the .fna file
+sequences <- read.fasta(file = input_file, seqtype = "DNA", as.string = TRUE, forceDNAtolower = FALSE)
+
+# Write sequences to a .fa file
+write.fasta(sequences = sequences,
+            names = names(sequences),
+            file.out = output_file)
+
+library(Biostrings)
+
+# Read the original FASTA
+Thale_fa <- readDNAStringSet("D:/Ajay Files/R Programming for Bioinformatics/Chapter 8/GCA_000001735.2_TAIR10.1_genomic.fa")
+
+# Write into a new FASTA with line length 60
+writeXStringSet(Thale_fa, "Thale_genome_fixed.fasta", width=60)
+
+
+# Build index from a reference genome FASTA file
+# Example: Thale genome FASTA
+buildindex(
+  basename = "Thale_index", 
+  reference = "D:/Ajay Files/R Programming for Bioinformatics/Chapter 8/Thale_genome_fixed.fasta"
+)
+
+# Aligning RNA-Seq reads 
+align(
+  index = "D:/Ajay Files/R Programming for Bioinformatics/Chapter 8/Thale_index",  # basename from buildindex()
+  readfile1 = "D:/Ajay Files/R Programming for Bioinformatics/Chapter 8/Thale Cress genome/SRR7508943.fastq/SRR7508943.fastq",
+  output_file = "Thale_aligned.bam"
+)
+
+```
+
+### 1. D. Quantifying Gene Expression
+
+Once the reads are aligned, the next step is quantifying gene expression levels. 
+This can be achieved using several approaches, but one of the most popular is 
+counting the number of reads mapping to each gene.
+
+#### 1. D. I. Counting Reads
+
+The "featureCounts" function in the Rsubread package is commonly used for counting 
+reads that map to genomic features. This function facilitates the generation of a 
+count matrix, where rows represent genes and columns correspond to samples
+
+R code for counting reads:
+
+```{r 1. D. I. Counting Reads}
+# Load Library
+library(Rsubread)
+
+# Count reads mapped to genes using a GTF annotation
+counts <- featureCounts(
+  files = "Thale_aligned.bam",       # BAM file
+  annot.ext = "genomic.gtf",         # GTF file
+  isGTFAnnotationFile = TRUE,        # Tell featureCounts it's a GTF
+  GTF.featureType = "exon",          # Count exons (common for RNA-seq)
+  GTF.attrType = "gene_id",          # Group by gene_id
+  useMetaFeatures = TRUE,            # Sum counts per gene
+  isPairedEnd = FALSE                # Set to FALSE if single-end
+)
+
+# Summary of count object
+summary(counts)
+
+# Extract the count matrix
+count_matrix <- counts$counts
+head(count_matrix)
+summary(count_matrix)
+
+```
+
+### 1. E. Differential Expression Analysis
+
+With the count matrix in hand, researchers can conduct differential expression 
+(DE) analysis to identify genes with statistically significant changes in 
+expression between conditions.
+
+#### 1. E. I. Using DESeq2
+
+The "DESeq2" package in R is widely used for DE analysis. It incorporates 
+normalization methods to account for variations in sequencing depth and other 
+technical biases. In this section, we will focus on preparing the data, 
+fitting the DE model, and extracting results.
+
+R code for differential expression analysis:
+
+Simulate a large RNA-seq count matrix with n = 1,013,912 counts in total, spread 
+across genes and samples, so you can run DESeq2 as if it were real data.
+
+We can do this by:
+  
+* Choosing a realistic number of genes (e.g., 20k for Arabidopsis).
+* Generating counts from a negative binomial distribution (common for RNA-seq).
+* Making sure the total sum of counts equals 1,013,912.
+* Assigning two conditions (control vs treated) with replicates.
+
+Here’s the R code to generate it:
+
+```{r 1. E. I. Using DESeq2}
+# Load library
+library(DESeq2)
+
+# Parameters
+set.seed(42)  # reproducibility
+n_genes <- 20000   # number of genes
+n_samples <- 4     # 2 control, 2 treated
+total_counts <- 1013912
+
+# Simulate counts from a negative binomial distribution
+raw_counts <- matrix(
+  rnbinom(n_genes * n_samples, mu = 50, size = 1/0.2),  # mean=50, dispersion=0.2
+  nrow = n_genes,
+  ncol = n_samples
+)
+
+head(raw_counts)
+
+# Scale counts so total sum matches exactly 1,013,912
+scale_factor <- total_counts / sum(raw_counts)
+scale_factor
+counts_scaled <- round(raw_counts * scale_factor)
+head(counts_scaled)
+
+# Assign gene IDs
+rownames(counts_scaled) <- paste0("Gene", seq_len(n_genes))
+colnames(counts_scaled) <- c("control_rep1", "control_rep2", "treated_rep1", "treated_rep2")
+head(counts_scaled)
+
+# Create sample metadata
+colData <- data.frame(
+  condition = factor(c("control", "control", "treated", "treated")),
+  replicate = c(1, 2, 1, 2)
+)
+rownames(colData) <- colnames(counts_scaled)
+
+
+# Build DESeq2 object
+dds <- DESeqDataSetFromMatrix(
+  countData = counts_scaled,
+  colData = colData,
+  design = ~ condition
+)
+
+head(dds)
+
+# Run DESeq2
+dds <- DESeq(dds)
+dds
+res <- results(dds)
+res
+
+# Check total counts
+sum(counts(dds))  # should be 1013912
+
+```
+
+The output from the "results" function provides log fold changes, statistical 
+significance (p-values), and other key metrics needed for biological 
+interpretation.
+
+### 1. F. Visualization of Results
+
+Once differential expression analysis is complete, effective visualization is 
+crucial for interpreting and communicating findings. R offers a variety of 
+plotting options, including:
+
+* Volcano plots to visualise DE results
+
+* Heatmaps for showing expression profiles in clusters
+
+* PCA (Principal Component Analysis) to explore sample relationships.
+
+R code for generating a volcano plot:
+
+```{r 1. F. Visualization of Results}
+# Load library
+library(ggplot2)
+
+# Create a volcano plot
+results_df <- as.data.frame(res)
+head(results_df)
+
+ggplot(results_df, aes(x = log2FoldChange, y = -log10(pvalue))) + 
+  geom_point(alpha = 0.5) + theme_minimal() + 
+  labs(title = "Volcano Plot", x = "-Log2 Fold Change P-value")
+
+```
+
+RNA-Seq has become an indispensable method for studying gene expression at a 
+comprehensive level. This chapter provided an overview of the critical steps in 
+RNA-Seq data analysis using R, from data acquistion and quality control to 
+alignment, quantification, differential expression analysis and visualization. 
+As researchers continue to explore the complexities of the transcriptome, tools 
+like R and its rich ecosystem of packages will remain vital in translating raw 
+sequencing data into insightful biological discoveries.
+
+## 2. Aligning and Counting RNA-Seq Reads
+
+RNA sequencing (RNA-Seq) has revolutionized our understanding of gene expression 
+by allowing researchers to quantify transcript abundance and discover novel 
+isoforms. However, the analysis of RNA-Seq datais a complex process that requires 
+precise techniques for aligning reads to a reference genome or transcriptome 
+and counting the number of reads that map to each gene. In this chapter, we 
+guide you through the process of aligning and counting RNA-Seq reads using the 
+R programming language and Bioconductor packages, providing you with a robust 
+framework for analyzing your RNA-Seq data.
+
+### 2. A. Prerequisites
+
+Before you drive into RNA-Seq data analysis, it is crucial to have a working 
+knowledge of R and some familiarity with genomic concepts such as sequences, 
+genes and transcripts. Ensure that you have the following software  installed:
+
+* __R (version 4.0 or higher)__
+
+* __Bioconductor__ (installation instructions can be found on the Bioconductor 
+website). We will make use of several packages which can be installed using 
+Bioconductor:
+
+```{r 2. A. Prerequisites}
+# if (!require("BiocManager", quietly = TRUE))
+#   install.packages("BiocManager")
+# BiocManager::install(version = "3.22")
+
+# BiocManager::install(c("GenomicRanges", "Rsubread", "DESeq2", "edgeR"))
+
+```
+
+### 2. B. Understanding RNA-Seq Data
+
+RNA-Seq data typically starts with raw sequencing reads, which can be obtained 
+from high-throughput sequencing platforms such as Illumina. These reads must be 
+processed and aligned to a reference geneome or transcriptome to facilitate 
+downstream analysis. The primary steps in the RNA-Seq workflow include:
+
+* __Quality Control__: Assessing the quality of raw sequencing data using tools 
+like FastQC.
+
+* __Alignment__: Mapping reads to the reference genome or transcriptome
+
+* __Counting Reads__: Summarizing the number of reads that align to each gene.
+
+* __Differential Expression Analysis__: Identifying genes that show significant 
+changes in expression across conditions.
+
+### 2. C. Quality Control of RNA-Seq Reads
+
+Before alignment, it is essential to perform quality control on your raw RNA-Seq 
+data. Tools like "FastQC" provide insights into sequencing quality, adapter 
+content and read length distribution. In R, you can use the "fastqcr" package 
+to visualize quality metrics.
+
+```{r 2. C. Quality Control of RNA-Seq Reads}
+# Install "fastqcr" package
+# install.packages("fastqcr", repos = "http://cran.us.r-project.org")
+
+# Load "fastqcr" package
+library(fastqcr)
+
+# Define the file path
+fastq_file <- "D:/Ajay Files/R Programming for Bioinformatics/Chapter 8/Thale Cress genome/SRR7508943.fastq/SRR7508943.fastq"
+
+# Load the FASTQ file
+fastq_data <- readFastq(fastq_file)
+
+# Inspect the first few reads
+head(fastq_data)
+
+# Fastq function only works in command line (Linux) environment
+# qc <- fastqc(fq.dir = "D:/Ajay Files/R Programming for Bioinformatics/Chapter 8/Thale Cress genome/SRR7508943.fastq/")
+# Error in .check_if_unix() : Unix system (MAC OSX or Linux) required.
+
+# Alternative use Short Read package
+library(ShortRead)
+fq <- readFastq(fastq_file)
+qa <- qa(fastq_file)
+report(qa, dest = "QA_Report")
+
+```
+
+### 2. D. Aligning Reads
+
+Once quality control is complete, the next step is aligning the reads to the 
+reference genome. R provides a handy interface with the "Rsubread" package, 
+which includes the "align" function for this purpose.
+
+#### 2. D. I. Indexing the Reference Genome
+
+Before aligning, you need to create an index of the reference genome:
+
+```{r 2. D. I. Indexing the Reference Genome}
+# Build index from a reference genome FASTA file
+# Example: Thale genome FASTA
+# buildindex(
+#   basename = "Thale_index", 
+#   reference = "D:/Ajay Files/R Programming for Bioinformatics/Chapter 8/Thale_genome_fixed.fasta"
+# )
+
+```
+
+#### 2. D. II. Aligning the Reads
+
+Now, you can align your reads to the indexed reference genome:
+
+```{r 2. D. II. Aligning the Reads}
+# Aligning RNA-Seq reads 
+# align(
+#   index = "D:/Ajay Files/R Programming for Bioinformatics/Chapter 8/Thale_index",  # basename from buildindex()
+#   readfile1 = "D:/Ajay Files/R Programming for Bioinformatics/Chapter 8/Thale Cress genome/SRR7508943.fastq/SRR7508943.fastq",
+#   output_file = "Thale_aligned.bam"
+# )
+
+```
+
+### 2. E. Counting Reads
+
+After Alignment, the final step before differential expression analysis is 
+counting how many reads to map to each gene. This is essential for constructing 
+a count matrix for downstream analysis.
+
+#### 2. E. I. Count Reads using "featureCounts"
+
+"featureCounts", which is part of the "Rsubread" package, provides a simple way 
+to count reads for annotated features like genes.
+
+```{r 2. E. I. Count Reads using "featureCounts"}
+# Count reads mapped to genes using a GTF annotation
+# counts <- featureCounts(
+#   files = "Thale_aligned.bam",       # BAM file
+#   annot.ext = "genomic.gtf",         # GTF file
+#   isGTFAnnotationFile = TRUE,        # Tell featureCounts it's a GTF
+#   GTF.featureType = "exon",          # Count exons (common for RNA-seq)
+#   GTF.attrType = "gene_id",          # Group by gene_id
+#   nthreads = 4,                      # no. of. threads
+#   useMetaFeatures = TRUE,            # Sum counts per gene
+#   isPairedEnd = FALSE                # Set to FALSE if single-end
+# )
+
+# Summary of count object
+# summary(counts)
+
+```
+
+#### 2. E. II. Organizing the Count Data
+
+The output of "featureCounts" is a "SummarizedExperiment" object, which can be 
+further manipulated to fit your analysis needs
+
+```{r 2. E. II. Organizing the Count Data}
+# Load Library
+library(SummarizedExperiment)
+
+# Convert count data to a matrix and set row and column names.
+class(counts)
+count_matrix_1 <- as.matrix(counts$counts)
+rownames(count_matrix_1) <- counts$annotation$GeneID
+colnames(count_matrix_1) <- counts$annotation$SampleID
+head(count_matrix_1)
+class(count_matrix_1)
+
+```
+
+We have walked through the essential steps for aligning and counting RNA-Seq 
+reads using R. This process is foundational for any downstream analysis, 
+facilitating differential expression studies and paving the way for various 
+other bioinformatics analyses. As you become more familiar with these tools, 
+you'll find that they offer great flexibility and power in handling RNA-Seq 
+data.
+
+## 3. Differential Gene Expression Analysis with DESeq2 and edgeR
+
+This chapter focuses on two of the most popular tools for differential gene 
+expression analysis: DESeq2 and edgeR. Both of these R packages are designed 
+to perform statistical analysis on count data derived from RNA-seq experiments, 
+and they offer robust methodologies for identifying differentially expressed 
+genes (DEGs).
+
+### 3. A. Overview of RNA-seq Data
+
+RNA-seq generates vast amounts of data that represent the quantity of RNA in a 
+sample at the time of sequencing. The resulting raw data-count matrices, where 
+rows correspond to genes and columns represent samples - need pre-processing 
+and normalization before differential expression analysis. Some common pre-
+processing steps include filtering lowly expressed genes, normalizing for 
+differences in library sizes, and removing batch effects if necessary. 
+
+### 3. B. Introduction to DESeq2
+
+#### 3. B. I. DESeq2 Overview
+
+DESeq2 is an R package developed for analyzing count data from RNA-seq experiments. 
+It employs a model based on the negative binomial distribution to account for the 
+variability in gene expression levels. The workflow includes several key steps:
+
+* __Input Data__: DESeq2 requires a matrix of raw counts and a design formula 
+that describes the experimental conditions.
+
+* __Normalization__: The package automatically normalizes data to correct for 
+differences in library size by using size factors estimated from the counts.
+
+* __Model Fitting__: DESeq2 fits a statistical model to the counts based on 
+the design formula, estimating the dispersion of counts for each gene.
+
+* __Differential Expression Testing__: Using the fitted model, DESeq2 performs
+hypothesis testing to identify DEGs, controlling for false discovery rate (FDR)
+via the Benjamini-Hochberg procedure.
+
+#### 3. B. II. Key features of DESeq2
+
+* __Robust Dispersion Estimates__: DESeq2 provides informed estimates of variance, 
+which account for differences in biological variability across samples.
+
+* __Visualization Tools__: It includes facilities for visualizing results through 
+heatmaps, volcano plots, and principal component analysis (PCA).
+
+* __Handling of Batch Effects__: The package allows users to include batch 
+information in the model, mitigating the impact of unwanted variation on 
+differential expression.
+
+### 3. C. Introduction to edgeR
+
+#### 3. C. I. edgeR Overview
+
+edgeR is another widely used R package for analyzing RNA-seq count data, 
+especially beneficial for experiments with small sample sizes. It also employs 
+a negative binomial model for count data and utilizes empirical Bayes methods 
+to enhance statistical power.
+
+* __Input Data__: Similar to DESeq2, edgeR requires a count matrix and design 
+matrix.
+
+* __Data Normalization__: edgeR accounts for differences in sequencing depth 
+and RNA composition using the trimmed mean of M-values (TMM) normalization 
+method.
+
+* __Dispersion Estimation__: It estimates gene-specific dispersions from the 
+data and applies an empirical Bayes approch to improve estimation reliability.
+
+* __Differential Expression Analysis__: The package uses likelihood ratio tests 
+and exact tests to identify DEGs, providing a framework to perform multiple 
+testing corrections.
+
+#### 3. C. II. Key features of edgeR
+
+* __Flexibility__: edgeR can handle complex experimental designs and is capable
+of incorporating group and time-course comparisons.
+
+* __Powerful Statistical Tests__: The package's robust statistical framework 
+allows researchers to detect DEGs with high precision, particularly in low-count 
+situations.
+
+* __Visualization Capabilities__: edgeR offers multiple visualization options, 
+including MA plots and heatmaps.
+
+### 3. D. Comparative Analysis of DESeq2 and edgeR
+
+While both DESeq2 and edgeR are powerful tools for differential gene expression 
+analysis, they have different strategies, strengths and weaknesses.
+
+#### 3. D. I. Similarities
+
+* Both packages support the analysis of count data modelled by the negative 
+binomial distribution.
+
+* Both utilize empirical methods for estimating dispersion and controlling for 
+FDR.
+
+* Both offer extensive visualization capabilities to interpret results effectively.
+
+#### 3. D. II. Differences
+
+* __Normalization Methodology__: DESeq2 uses a median-of-ratios method for 
+normalization, while edgeR employs the TMM normalization.
+
+* __Models of Variability__: DESeq2 provides gene-specific variance estimates, 
+while edgeR improves variance estimation through empirical Bayes methods, which 
+might offer more stability in some contexts.
+
+* __Ease of Use__: DESeq2 is often considered more straightforward for beginners 
+due to its automated normalization and more guided workflow.
+
+### 3. E. Case Study: Application of DESeq2 and edgeR
+
+To illustrate the application of DESeq2 and edgeR, we present a hypothetical 
+case study analyzing gene expression changes in cancer research. A researcher 
+aims to identify DEGs between tumor and normal tissues using RNA-seq data.
+
+#### 3. E. I. Step-by-Step Analysis
+
+* __Data Pre-processing__: The raw count data is obtained and pre-processed, 
+filtering low-expression genes and ensuring quality control.
+
+* __Analysis with DESeq2__: 
+
+The DESeqDataSet is created and normalized.
+
+Differential expression is tested between tumor ans normal samples.
+
+Results are visualized using PCA plots and heatmaps to highlight significant genes
+
+* __Analysis with edgeR__: 
+
+The DGEList object is contructed and normalized using TMM.
+
+Likelihood ratio tests are performed to identify DEGs between the two groups.
+
+Results are visualized using MA plots and volcano plots.
+
+* __Comparison of Results__: The output from DESeq2 and edgeR is compared, with 
+attention paid to overlapping DEG's, as well as unique findings from each analysis. 
+The biological significance of these genes is discussed concerning relevant 
+pathways in cancer.
+
+### 3. F. Summary and Future developments
+
+Differential gene expression analysis using DESeq2 and edgeR provides invaluable 
+insights into genomic underpinnings of biological phenomena. Choosing between 
+these two tools often depends on the specific dataset and experimental design. 
+Regardless of the choice, proper understanding of their methodologies and 
+careful application will yield meaningful interpretations, advancing our 
+knowledge in genomics and precision medicine. As researchers continue to harness
+the power of RNA-seq, DESeq2 and edgeR remain essential tools in the ongoing
+exploration of gene expression dynamics.
+
+With the continuous development of bioinformatics tools, new methodologies for 
+RNA-seq data analysis will emerge, potentially integrating machine learning 
+algorithms and enhanced visualization techniques. Future versions of DESeq2 and 
+edgeR are likely to incorporate these advancements, streamlining workflows and 
+improving accuracy in differential gene expression analysis. Researchers should 
+stay updated with the latest releases and best practices to ensure the integrity 
+and reproducibility of their findings.
+
+## 4. Session Info
+
+```{r 4. Session Info}
+devtools::session_info()
+Sys.Date()
+
+```
+

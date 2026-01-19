@@ -1,0 +1,197 @@
+---
+title: 'Glossary: R for Bioinformatics'
+author: "Sasha Ajay Malkani"
+date: "2026-01-17"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## A
+
+### Algorithm
+
+A step-by-step procedure or formula for solving a problem. In bioinformatics, 
+algorithms are commonly used for sequence alignment, gene expression analysis, 
+and various computational biology tasks.
+
+### Annotation
+
+The process of adding informative comments or labels to biological data, such as 
+identifying gene functions, structures or locations within a genome.
+
+## B
+
+### Bioconductor
+
+An open-source project that provides tools and packages for the analysis and 
+comprehension of high-throughput genomic data in R. Bioconductor offers a plethora 
+of packages designed specifically for tasks like differential expression analysis, 
+genome annotation and data visualization.
+
+### Bioinformatics
+
+An interdisciplinary field that utilizes software tools, algorithms, and mathematics 
+to collect, analyze and interpret biological data, particularly at the genomic and 
+proteomic levels.
+
+## C
+
+### Clustering
+
+A method of grouping a set of objects in such a way that objects in the same group 
+(or cluster) are more similar to each other than those in other groups. In 
+bioinformatics, clustering is often used in gene expression analysis to identify 
+co-expressed genes.
+
+### CRAN
+
+The Comprehensive R Archive Network, a repository of R packages and documentation. 
+It serves as a central resource for R users to download software and access 
+community-contributed packages
+
+## D
+
+### Differentially Expression Analysis
+
+A statistical approach used to identify genes whose expression levels differ 
+significantly between two or more conditions or groups. The is crucial in studies
+comparing normal versus diseased tissues or treated versus untreated samples.
+
+### Data Wrangling
+
+The process of cleaning, restructuring and enriching raw data into a more suitable 
+format for analysis. This often involves filtering, merging and transforming datasets.
+
+## E
+
+### ETL (Extract, Transform, Load)
+
+A process in data integration that involves extracting data from various sources, 
+transforming it into a usable format, and loading it into a target database or 
+data warehouse. R provides numerous packages to streamline ETL processes in 
+bioinformatics.
+
+### Expression Matrix
+
+A two-dimensional matrix used in transcriptomics, where rows represent genes and 
+columns represent samples. The values of each gene across different samples.
+
+## F
+
+### Functional Annotation
+
+The process of assigning biological functions to genes or proteins based on their 
+sequence, structure or known interactions. This is critical for understanding the 
+roles different genes play in biological processes
+
+### FDR (False Discovery Rate)
+
+A statistical method used to correct for multiple comparisons when testing hypotheses, often employed in differential expression analysis to control the proportion of false positives.
+
+## G
+
+### Genome Assembly
+
+The process of putting together short DNA sequences to form a continuous sequence representing the genome of an organism. This is crucial for genome sequencing projects and can be tackled using various algorithms and R packages.
+
+### Gene Ontology (GO)
+
+A standardized vocabulary that describes gene functions across different species.
+GO annotations provide a structured way to represent gene attributes in terms of biological processes, cellular components, and molecular functions.
+
+## H
+
+### Heatmap
+
+A graphical representation of data where individual values are represented as colors.
+ Heatmaps are widely used in bioinformatics to visualize gene expression data, showing the expression levels of multiple genes across different condition.
+ 
+## I
+
+### IMGT
+
+The International ImMunoGeneTics information system, a database dedicated to immunoglobulins and T cell receptors. IMGT provides a wealth of information for
+bioinformaticians working in immunology.
+
+## M
+
+### Microarray
+
+A technology used to measure expression levels of many genes simultaneously. Microarrray data are often analyzed using R package designed for high-throughput
+genomics.
+
+### Mutation Analysis
+
+The examination of genetic variations or alterations that can affect gene function and may be associated with disease. R provides various tools for integrating and interpreting mutation data within the context of bioinformatics studies.
+
+## P
+
+### PCA (Principal Component Analysis)
+
+A statistical method that reduces the dimensionality of large datasets while preserving as much variance as possible. PCA is commonly used in bioinformatics 
+for exploratory data analysis and to visualize high-dimensional genomic data.
+
+### Package
+
+In R, a package is a collection of functions, data, and documentation bundled together. Bioconductor is known for its extensive array of bioinformatics packages that facilitate various analysis.
+
+### Pipeline
+
+A series of computational steps or processes through which data is passed, often with each step depending on the output of the previous one. Pipelines are crucial for maintaining reproducibility in bioinformatics research.
+
+## R
+
+### RNA-Seq
+
+A sequencing technique used to analyze the transcriptome of organisms by identifying and quantifying RNA presence and expression levels. R has numerous packages for analyzing RNA-Seq data effectively.
+
+### Reproducibility
+
+The ability to achieve the same results using the same methods and data in different analyses or experiments. In bioinformatics, reproducibility is essential for validating research findings and building trust in data analyses.
+
+## S
+
+### Sequencing
+
+The process of determining the nucleotide order of a DNA or RNA molecule. Various sequencing technologies produce data that need analysis and interpretation in bioinformatics.
+
+### Statistics
+
+A branch of mathematics dealing with data collection, analysis, interpretation and presentation. In bioinformatics, statistical methods are vital for drawing inferences from biological data.
+
+## T
+
+### Transcriptomics
+
+The study of the transcriptome, which is the complete range of messenger RNA molecules expressed by an organism. Analyzing transcriptomics data often involves various R packages to perform tasks such as differential expression or clustering.
+
+## V
+
+### Visualization
+
+The graphical representation of data to discover patterns, trends and relationships within the data. R offers powerful visualization libraries such as ggplot2 that are extensively used in bioinformatics for presenting complex datasets.
+
+### Variants
+
+Alterations in the DNA sequence which may affect gene function and can lead to phenotypic diversity. In bioinformatics, variant analysis is essential for understanding genetic diseases and population genetics.
+
+### Venn Diagram
+
+A diagram that shows all possible logical relations between a finite collection of different sets. Venn diagrams are often used in bioinformatics to visualize overlaps between gene sets or sample comparisons.
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,3 @@
+Organism Scientific Name	Organism Common Name	Organism Qualifier	Taxonomy id	Assembly Name	Assembly Accession	Source	Annotation	Level	Contig N50	Size	Submission Date	Gene Count	BioProject	BioSample
+Arabidopsis thaliana	thale cress	ecotype: Columbia	3702	TAIR10.1	GCA_000001735.2	GenBank	Annotation submitted by The Arabidopsis Information Resource (TAIR)	Chromosome	11194537	119146348	2018-03-15	38050	PRJNA10719	SAMN03081427
+Arabidopsis thaliana	thale cress	ecotype: Columbia	3702	TAIR10.1	GCF_000001735.4	RefSeq	Annotation submitted by TAIR and Araport	Chromosome	11194537	119146348	2018-03-15	38312	PRJNA10719	SAMN03081427

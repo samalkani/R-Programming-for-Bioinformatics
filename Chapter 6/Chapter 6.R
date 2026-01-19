@@ -1,0 +1,543 @@
+# Chapter 6 - Handling and Pre-processing Sequencing Data
+
+# This chapter  provides a comprehensive overview of managing various types of 
+# sequencing data, specifically focusing on the capabilities of R, a powerful 
+# and versatile programming language for statistical computing. We will explore 
+# the foundational concepts, packages, and best practices in pre-processing 
+# sequencing data, ensuring that you are equipped to conduct a robust analysis 
+# in your biological studies.
+
+# 1. A. Understanding Sequencing Data
+
+# Sequencing data can come in several forms, such as:
+
+# * __Raw Reads__: The raw output from a sequencing machine, typically in FASTQ
+# format.
+
+# * __Aligned Reads__: Processed reads that have been aligned to a reference 
+# genome (e.g., in BAM format).
+
+# * __Count Data__: Summarized data representing the number of reads mapped to 
+# specific features, such as genes (e.g., in a count table format).
+
+# Understanding the structure and format of your data is essential before diving 
+# into pre-processing steps.
+
+# 1. B. R and Sequencing Data Formats
+
+# R can hamdle various sequencing data formats through specific packages. Notable 
+# formats include:
+
+# * __FASTQ__: contains raw reads along with their quality scores.
+
+# * __BAM/SAM__: Binary and text formats for storing aligned reads.
+
+# * __VCF__: A format for displaying SNPs and indels.
+
+# * __Count Table__: A matrix of counts for genes or features across samples.
+
+# Packages such as "short Read", "Genomic Ranges", "Rsamtools", and "DESeq2" 
+# facilitate the management and conversion of these files.
+
+# 1. B. I. Loading FASTQ Files
+
+# Install "ShortRead" Package
+# BiocManager::install(c("ShortRead"), type = "source", force = TRUE)
+
+# Update co-dependent BioConductor packages
+# BiocManager::install(c("SparseArray", 'GenomicRanges', 'S4Arrays', "rtracklayer"), 
+# type = "source", force = TRUE)
+
+# Load "Short Read" Package
+library(ShortRead)
+
+# Define the file path
+fastq_file <- "D:/Ajay Files/R Programming for Bioinformatics/Chapter 6/wu_0_A_wgs.fastq"
+
+# Load the FASTQ file
+fastq_data <- readFastq(fastq_file)
+
+# Inspect the first few reads
+head(fastq_data)
+
+# 1. C. Quality Control of Sequencing Data
+
+# One of the most critical steps in data pre-processing is quality control (QC).
+# Poor-quality data can lead to erroneous results. Tools such as "FastQC" are 
+# widely used to visualize the quality of the sequencing data. In R, we can 
+# perform initial quality checks using the "Short Read" package.
+
+# 1. C. I. Visualizing Quality Scores
+
+# Load libraries
+library(ShortRead)
+library(ggplot2)
+
+# Extract quality scores
+quality_scores <- quality(fastq_data)
+
+# Convert to a data frame for plotting
+quality_df <- as.data.frame(as(quality_scores, "matrix"))
+
+# Plotting the quality scores
+library(reshape2)
+melted_df <- melt(quality_df, na.rm = TRUE, value.name = "value")
+head(melted_df)
+
+ggplot(melted_df, aes(x = variable, y = value)) + geom_line() + 
+  labs(title = "Quality Scores across Reads", x = "Position", y = "Quality Score") + theme_light()
+
+# The quality scores at positions 1 - 50 along the short reads are about 35 - high quality!
+
+# 1. D. Trimming and Filtering Reads
+
+# Trimming involves removing low-quality bases from the ends of reads and filtering 
+# out reads that do not meet certain quality thresholds. The "cutadapt" tool or R 
+# packages like "Biostrings" or "DADA2" can be used for this purpose.
+
+# 1. D. I. Using DADA2 for trimming
+
+# Install DADA2 package
+# BiocManager::install("dada2", version = "3.22")
+
+# Load DADA2 package
+library(dada2)
+
+# Specify the path to your FASTQ files
+path_in <- "D:/Ajay Files/R Programming for Bioinformatics/Chapter 6/Input file/"
+path_out <- "D:/Ajay Files/R Programming for Bioinformatics/Chapter 6/Output file/"
+
+fns_in <- list.files(path_in, pattern = "*fastq", full.names = TRUE)
+fns_out <- list.files(path_out, pattern = "*fastq", full.names = TRUE)
+
+# Run DADA2 to filter and trim reads
+output_file = filterAndTrim(fwd = fns_in, filt = fns_out, truncLen = 40, maxEE = 2, truncQ = 2, compress = FALSE)
+output_file
+
+# Runs DADA2 to filter and trim reads on "paired end reads
+# output_file = filterAndTrim(fwd = fns_in, filt = fns_out, truncLen = c(200, 200), maxEE = c(2,2), truncQ = 2, compress = FALSE)
+
+# 1. E. Aligning Reads to a Reference Genome
+
+# Once the reads are prep-proccessed, aligning them to a reference geneome is the 
+# subsequent step. R provides tools to interface with alignment software like 
+# "Bowtie" or "STAR". The "Rsamtools" package can handle the aligned BAM files.
+
+# 1. E. I. ReadingAligned BAM files
+
+# Load "Rsamtools" package
+library(Rsamtools)
+
+# Load BAM file
+bam_file <- "D:/Ajay Files/R Programming for Bioinformatics/Chapter 6/athal_wu_0_A.sam.bam"
+
+# Load Index file (given without the "bai" file extension)
+bam_index <- "D:/Ajay Files/R Programming for Bioinformatics/Chapter 6/athal_wu_0_A.sorted.bam"
+
+# Get a summary of the aligned data
+aln_data <- scanBam(bam_file, index = bam_index)
+summary(aln_data)
+
+# Re-assign aligned data to the index containing the headings under which data is stored
+aln_data <- aln_data[[1]]
+
+# list the headings of the BAM aligned file
+names(aln_data)
+
+# Use "lapply" function to list the 1st observation under each heading
+lapply(aln_data, function(xx) xx[1])
+
+# Summary of the contents of the "BAM" file
+quickBamFlagSummary(bam_file)
+
+# Setting up a bamview with a single file in it
+bamView <- BamViews(bam_file)
+bamView
+
+# Reading in data with SCANBAM
+aln_data <- scanBam(bamView)
+
+# Gives the Outer
+names(aln_data)
+
+# Gives a list (first level)
+names(aln_data[[1]])
+
+# Gives a list (second level), content
+names(aln_data[[1]][[1]])
+
+# 1. G. Generating Count Data
+
+# After alignment, the next step is to generate a count matrix, which contains 
+# the number of reads mapping to each feature, usually genes. The "Genomic Ranges" 
+# package, along with the "DESeq2", allows for effective handling of this step.
+
+# 1. G. I. Counting Reads
+
+# Load "Biobase" library
+library(Biobase)
+
+# Load in data from a connection
+con =url("http://bowtie-bio.sourceforge.net/recount/ExpressionSets/bottomly_eset.RData")
+load(file=con)
+close(con)
+ls()
+bot = bottomly.eset
+bot
+pdata_bot=pData(bot)
+head(pdata_bot)
+fdata_bot = featureData(bot)
+head(fdata_bot)
+edata = exprs(bot)
+head(edata, n=1)
+
+# Load "DESeq2" library
+library(DESeq2)
+
+# Create a "DESeq2" data set
+count_data <- DESeqDataSetFromMatrix(countData = edata, pdata_bot, ~strain)
+count_data
+
+# Pre-filtering low-count genes
+count_data <- count_data[rowSums(counts(count_data))>1,]
+count_data
+
+# Mastery of these techniques not only improves the quality of your analyses but 
+# is also fundamental to the reproducibility and reliability of your results. In
+# the next chapter, we will dive deeper into statistical analysis and visualization 
+# techniques applicable to the pre-processing outcomes discussed in this chapter.
+
+# 2. Quality Control and Pre-processing of FASTQ files
+
+# The FASTQ format, commonly used to store sequencing data, encapsulates both the
+# sequence reads and their corresponding quality scores. Quality control and pre-
+# processing of these FASTQ files are essential steps to ensure the reliability 
+# and accuracy of downstream analyses. This chapter presents a systemic approach
+# to performing quality control and pre-processing of FASTQ files using R, a 
+# language widely adopted in statistical computing and bioinformatics.
+
+# 2. A. Understanding the FASTQ Format.
+
+# Before delving into quality control, it's essential to understand the structure
+# of FASTQ files. Atypical FASTQ file consists of four lines per sequence:
+
+# * __Sequence Identifier__: A unique identifier for the sequence, starting with 
+# "@".
+
+# * __Sequence__: The nucleotide sequence itself.
+
+# * __Optional Identifier__: Starts with a "+" and can be followed by the same 
+# identifier or left blank.
+
+# * __Quality Scores__: Encoded in ASCII characters that represent the quality 
+# of each nucleotide in the sequence.
+
+# This structure is vital for further processing, as it dictates how we will parse 
+# the data to perform quality control.
+
+# 2. B. Importance of Quality Control
+
+# Quality control is imperative in sequencing data due to potential issues such as:
+
+# * __Low-quality reads__: that can introduce errors in downstream analyses
+
+# * __Contaminated sequences__: that may misrepresent biological insights
+
+# * __Batch effect__: from sequencing runs that need to be corrected or acknowledged
+
+# By conducting quality control, we can filter out unreliable sequences, ensuring 
+# a cohort of high-quality data that reflects true biological signals.
+
+# 2. C. Tools for Quality Control in R.
+
+# * __Short Read__: Offers functionalities for reading, quality assessment, and 
+# manipulation of FASTQ files.
+
+# * __Biostrings__: Provides tools for efficient string representation and 
+# manipulation relevant to biological sequences.
+
+# To get started, make sure to install the required packages if they are not 
+# already installed:
+
+# 2. C. I. Install Packages
+
+# Install packages
+# if(!requireNamespace("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+
+# BiocManager::install(c("ShortRead", "Biostrings"), 
+# type = "source", force = TRUE)
+
+# 2. D. Reading FASTQ Files
+
+# Using the "Short Read" package, we can read FASTQ files into R. The "readFastq" 
+# function is particularly useful:
+
+# Load "Short Read" library
+library(ShortRead)
+
+# Replace "path/to/your/file.fastq" with the actual path to your FASTQ file 
+fastq_file <- readFastq("D:/Ajay Files/R Programming for Bioinformatics/Chapter 6/wu_0_A_wgs.fastq")
+
+# Print Fastq file
+print(fastq_file)
+
+# Display individual sequencing reads
+fastq_file@sread
+
+# This will load the FASTQ file into R, allowing you to examine the content and 
+# access the quality scores associated with each base in the sequences.
+
+# 2. E. Performing Quality Control
+
+# 2. E. I. Visualizing Quality Scores
+
+# A first step in assessing the quality of sequences is to visualize the quality
+# scores. "Short Read" provides tools to create quality scores plots:
+
+# Load "ggplot2"  and "DADA2" library
+library(ggplot2)
+library(dada2)
+
+# Extract quality scores 
+quality_scores <- quality(fastq_file)
+quality_scores
+
+# Plot quality scores
+fastq_filepath <- "D:/Ajay Files/R Programming for Bioinformatics/Chapter 6/wu_0_A_wgs.fastq"
+plotQualityProfile(fastq_filepath, n = 147354)
+
+# This visualization helps in identifying systematic issues such as drops in 
+# quality across sequences, which may suggest the need for further filtering
+
+# 2. E. II. Filtering Low-Quality Reads
+
+# Based on visualizations, one common method for filtering is to remove reads 
+# with average quality score below a specified threshold. We can calculate the 
+# average quality score for each read and filter accordingly.
+
+# Set a quality threshold
+quality_threshold <- 20 # Example threshold
+
+# Calculate average quality scores and filter
+# filtered_reads <- fastq_file[width(quality_scores) == 0 | rowMeans(as(quality_scores, "matrix")) >= quality_threshold]
+
+# filtered_reads <- fastq_file@quality@quality@ranges@width[(quality_scores) == 0 |rowMeans(as(quality_scores), "matrix") >= quality_threshold]
+
+# fastq_file@sread@ranges@width
+
+# print(filtered_reads)
+
+# This code snippet demonstrates how to retain only those reads that exceed the 
+# designated quality threshold, improving the overall quality of out data set.
+
+# 2. F. Trimming Sequences
+
+# In addition to filtering, trimming sequences to remove low-quality bases from 
+# the ends is also vital. The "trimWS" function can help with trimming reads 
+# based on quality.
+
+# Trimming based on a quality score threshold.
+print(fastq_file)
+trimmed_reads <- trimTails(fastq_file, k = 1, a = 5)
+print(trimmed_reads)
+
+# (Quality Score = 20) == (ASCII score = 53) == (ASCII character = 5)
+# k	= integer(1) describing the number of failing letters required to trigger trimming.
+# a = ASCII character at or below which a nucleotide is marked as failing.
+
+# 2. G. Outputting Processed FASTQ Files
+
+# After quality control and pre-processing, it is often necessary to write the 
+# cleaned reads back to a new FASTQ file for downstream analyses:
+writeFastq(trimmed_reads, "D:/Ajay Files/R Programming for Bioinformatics/Chapter 6/cleaned_file.fastq", mode = "a")
+
+# This command saves the processed FASTQ file, ensuring that it can be utilized 
+# in subsequent analyses or workflows.
+
+# Quality control and pre-processing of FASTQ files are critical for reliable 
+# bioinformatics analyses. In this chapter, we presented a comprehensive overview 
+# of how to perform these tasks using R, from visualizing quality scores to 
+# filtering reads and trimming sequences. By leveraging the tools available in R, 
+# researchers can ensure that their sequencing data is of high quality, thus 
+# enhancing the validity of their findings.
+
+# 3. Using Short Read and Rsamtools for Sequence Data Management
+
+# This chapter focuses on two prominent R packages: __Short Read__ and __Rsamtools__.
+# Together, these packages facilitate efficient management, manipulation, and 
+# analysis of sequence data, particularly in the context of next-generation 
+# sequencing (NGS).
+
+# 3. A. Overview of Short Read and Rsamtools
+
+# * __Short Read__ is an R package designed to facilitate the handling of short 
+# sequence reads, including the reading, writing and processing of FASTQ files, 
+# which store nucleotide sequences along with their quality scores. It provides 
+# user-friendly functions to manipulate sequence data and assess the quality of 
+# reads.
+
+# * __Rsamtools__, on the other hand, offers tools specifically for manipulating 
+# high-throughput sequencing data in the BAM (Binary Alignment/Map) format, which
+# is the compressed binary version of SAM format. Rsamtools allows users to read,
+# write, and index BAM files, making it crucial for working with aligned sequence 
+# data.
+
+# By integrating these two packages, researchers can streamline the workflow from
+# raw sequence data to processed and analyzable formats, enabling downstream 
+# analysis such as variant calling, gene expression studies, and more.
+
+# 3. B. Installing the Packages
+
+# To begin using Short Read and Rsamtools, you first need to install them from 
+# Bioconductor, a popular repository for bioinformatics packages in R. If you 
+# haven't already set up Bioconductor, you can do so with the following commands. 
+
+# 3. B. I. Install packages
+# if(!requireNamespace("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+
+# BiocManager::install(c("ShortRead", "Biostrings"), 
+# type = "source", force = TRUE)
+
+# 3. B. II. Loading libraries
+
+# Once the packages are installed, you can load them into your R session:
+
+library(ShortRead)
+library(Rsamtools)
+
+# 3. C. Importing Sequencing Data
+
+# 3. C. I. Importing FASTQ Files with Short Read
+
+# The primary function for reading FASTQ files in ShortRead is "readFastq()". 
+# This function loads sequence data into R as a "Short Read Q" object. Below is
+# an example of how to import a FASTQ file:
+
+# Specify the path to your FASTQ file
+fastq_file <- "D:/Ajay Files/R Programming for Bioinformatics/Chapter 6/wu_0_A_wgs.fastq"
+
+# Read the FASTQ file
+fastq_data <- readFastq(fastq_file)
+
+# Display a summary of the imported data
+summary(fastq_data)
+
+# 3. C. II. Inspecting Quality Scores
+
+# After importing sequencing data. it's crucial to inspect the quality of the reads.
+# Short Read provides various methods to visualize and check the quality scores.
+
+# Extract quality scores
+quality_scores <- quality(fastq_data)
+quality_scores
+
+# Plot quality scores
+plotQualityProfile(fastq_file)
+
+# This will generate a visual representation of the quality scores across the 
+# length of the reads, allowing you to assess whether your data meets quality 
+# thresholds for further analysis.
+
+# 3. C. III. Importing BAM Files with Rsamtools
+
+# For working with BAM files, Rsamtools provides the "BamFile()" function to 
+# create a BAM file connection. Reading the data can be done using the 
+# "readGAlignments()" function. Here's how to do it:
+
+# Specify the path to your BAM file
+bam_file <- "D:/Ajay Files/R Programming for Bioinformatics/Chapter 6/athal_wu_0_A.sam.bam"
+
+# Create a BAM file connection
+bam_data <- BamFile(bam_file)
+bam_data
+
+# Read the alignments
+alignments <- readGAlignments(bam_data)
+alignments
+
+# Display a summary of the alignments
+summary(alignments)
+
+# 3. D. Data Manipulation
+
+# 3. D. I. Filtering Sequences
+
+# Often, you may need to filter sequences based on quality scores or other criteria.
+# For instance, filtering low-quality reads from the FASTQ data can be performed 
+# as follows:
+
+# Filtering reads with quality scores below a threshold
+# Coerce to a numeric matrix
+# Rows = reads; Columns = sequencing cycles/positions
+qual_mat <- as(quality(fastq_data), "matrix")
+head(qual_mat, n = 2)
+
+# Calculate a metric (e.g., average quality score per read)
+# Use na.rm = TRUE if reads have unequal lengths
+avg_quality <- rowMeans(qual_mat, na.rm = TRUE)
+head(avg_quality)
+
+# Filter the original S4 object
+filtered_reads <- fastq_data[avg_quality >= 20]
+head(filtered_reads)
+
+# Summary of filtered reads
+summary(filtered_reads)
+
+# 3. D. II. Subsetting Alignments
+
+# For BAM files, you can subset alignments based on specified regions or specific
+# criteria such as read names:
+
+# Subset alignments based on specific chromosomes or regions
+chr3_alignments <- alignments[seqnames(alignments) == "Chr3"]
+chr3_alignments
+
+# Display the number of alignments in Chromosome 3 (Chr3)
+length(chr3_alignments)
+
+# 3. E. Writing Sequence Data
+
+# After processing the sequence data, you may want to save your results. Short 
+# Read and Rsamtools allow you to write output in various formats.
+
+# 3. E. I. Writing FASTQ Files
+
+# To write filtered or modified reads back to a FASTQ file using Short Read, you 
+# can utilize the "write Fastq()" function:
+
+# Write filtered reads to a new FASTQ file.
+
+# Create a new FASTQ file
+file_path = "D:/Ajay Files/R Programming for Bioinformatics/Chapter 6/filtered_sequences.fastq"
+
+# Write filtered reads to a FASTQ file
+writeFastq(filtered_reads, file_path, mode = "a")
+
+# 3. E. II. Writing BAM Files
+
+# To save aligned sequences back to BAM format, Rsamtools offers 
+# "writeGAlignments()":
+
+# Install "rtracklayer"
+BiocManager::install("rtracklayer")
+
+# Rsamtools does not have "writeGAlignments()" function so load these packages below
+library(GenomicAlignments)
+library(rtracklayer)
+
+# Create a new BAM file
+output_bam <- "D:/Ajay Files/R Programming for Bioinformatics/Chapter 6/filtered_sequences.bam"
+
+# Write alignments to BAM file
+export(chr3_alignments, output_bam, format = "BAM")
+# writeGAlignments(chr3_alignments, output_bam)
+# .libPaths()
+
+# From importing sequence files in FASTQ and BAM formats to filtering, manipulating
+# and writing output files, these tools provide a robust framework for handling the
+# complexities of high-throughput sequencing data. By leveraging the capabilities of
+# these packages, researchers can streamline their workflows, enabling more efficient
+# data analysis and interpretation in their biological studies.

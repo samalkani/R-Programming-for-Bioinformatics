@@ -1,0 +1,711 @@
+---
+title: "Chapter 9 - Functional Annotation and Enrichment Analysis"
+author: "Sasha Ajay Malkani"
+date: "2026-01-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1. Functional Annotation and Enrichment Analysis
+
+This information may include details about the gene's function, its involvement 
+in biological pathways, associated diseases, and more. In bioinformatics, 
+functional annotation is essential for interpreting the biological significance 
+of genomic data, especially in the context of high-throughput sequencing 
+technologies like RNA-seq or microarray analyses.
+
+In this chapter, we will explore various tools and strategies in R to perform 
+functional annotation and enrichment analysis, which allows researcher to 
+determine whether a set of genes or proteins shows statistically significant 
+differences in their functional characteristics.
+
+__Objectives__
+
+* Understand the concept of functional annotation.
+
+* Learn how to utilize R packages for functional annotation.
+
+* Perform gene set enrichment analysis (GSEA) to identify over-represented 
+biological terms in a list of genes.
+
+* Visualize the results of enrichment analysis.
+
+### 1. A. R Package for Functional Annotation
+
+Several packages can assist in functional annotation and enrichment analyses.
+Some of the most widely used packages include:
+
+* __biomaRt__: This package provides an interface to the BioMart database, 
+allowing retrival of annotations based on gene identifiers.
+
+* __clusterProfiler__: A comprehensive package for statistical analysis and 
+visualization of functional profiles for genes and gene clusters.
+
+* __GeneAnswers__: Used for group testing of gene sets and the identification 
+of significant enrichment.
+
+* __AnnotationDbi__: Offers a framework to access Bioconductor annotation 
+resources.
+
+### 1. B. Getting Started with Bioconductor
+
+To leverage the capabilities of R for bioinformatics, you first need to install 
+and load the necessary Bioconductor packages. Install Bioconductor and relevant 
+packages as follows:
+
+#### 1. B. I. Installing Bioconductor
+
+```{r 1. B. I. Installing Bioconductor}
+# if (!require("BiocManager", quietly = TRUE))
+#   install.packages("BiocManager")
+# BiocManager::install(version = "3.22")
+
+# BiocManager::install(c("biomaRt", "clusterProfiler", "AnnotationDbi"))
+
+```
+
+#### 1. B. II. Load the Packages
+
+After installation, you can load the packages with:
+
+```{r 1. B. II. Load the Packages}
+library(biomaRt)
+library(clusterProfiler)
+library(AnnotationDbi)
+
+```
+
+### 1. C. Performing Functional Annotation
+
+#### 1. C. I. Step 1: Retrieving Gene Annotations
+
+Using "biomaRt", you can obtain functional annotations for given set of genes. 
+For example, to retrieve gene annotations from the Ensembl database:
+
+```{r 1. C. I. Step 1: Retrieving Gene Annotations}
+# Define the attributes and filters
+attributes <- c("ensembl_gene_id", 
+                "external_gene_name", 
+                "description", 
+                "gene_biotype")
+attributes
+
+filters <- "ensembl_gene_id"
+filters
+
+# Connect to BioMart and retrieve annotations
+mart <- useEnsembl(biomart = "ensembl", dataset = "hsapiens_gene_ensembl")
+mart
+genes_of_interest <- c("ENSG00000139618", "ENSG00000171862") # Example gene IDs 
+genes_of_interest
+annotations <- getBM(attributes = attributes, filters = filters, 
+                     values = genes_of_interest, mart = mart)
+
+print(annotations)
+
+```
+
+This will give you a data frame containing the gene IDs, their external names, 
+descriptions, and biotypes.
+
+### 1. D. Gene Set Enrichment Analysis
+
+#### 1. D. I. Step 1: Preparing Data
+
+To perform gene set enrichment analysis, you need a ranked list of genes, 
+typically based on their expression levels or another relevant metric, along
+with a predefined set of gene annotations (like KEGG pathways, GO terms, etc.)
+
+#### 1. D. II.: Running Enrichment Analysis with clusterProfiler
+
+Using the "clusterProfiler" package, you can conduct enrichment analysis for 
+Gene Ontology (GO) terms, KEGG pathways, and more.
+
+```{r 1. D. II.: Running Enrichment Analysis with clusterProfiler}
+# Load library
+library(org.Hs.eg.db)
+
+# Sample data
+gene_list <- c(annotations$external_gene_name) # Replace with your gene list
+gene_list
+
+# Simulated logFC values for the gene list (normally you would get these from 
+# your analysis).
+logFC <- rnorm(length(gene_list))
+logFC
+names(logFC) <- gene_list
+names(logFC)
+
+# Enrichment analysis for GO terms
+ego <- enrichGO(gene = names(logFC)[abs(logFC) > 0.1], OrgDb = org.Hs.eg.db,
+                keyType = "SYMBOL", ont = "BP", pAdjustMethod = "BH", 
+                qvalueCutoff = 0.05)
+ego
+
+# View results
+head(ego)
+
+# Load library
+# library(enrichplot)
+# library(clusterProfiler)
+
+# Check if results exist
+# if (!is.null(ego) && nrow(as.data.frame(ego)) > 0) {
+#   library(enrichplot)
+#   library(ggplot2)
+  
+#   dotplot(ego, showCategory = 10) +
+#     ggtitle("Top 10 Enriched GO Terms")
+# } else {
+#   message("No significant GO terms found. Try relaxing cutoffs.")
+# }
+
+```
+
+### 1. E. Visualization of Enrichment Results
+
+Visualizing the results of enrichment analysis is critical for interpreting 
+the data. "clusterProfiler" provides several options for visualizing GO and 
+KEGG enrichment results.
+
+```{r 1. E. Visualization of Enrichment Results}
+# Install package
+# BiocManager::install(c("enrichplot"))
+
+# Load Library
+library(enrichplot)
+library(clusterProfiler)
+library(ggplot2)
+
+# Dotplot visualization for GO enrichment results
+dotplot(ego, showCategory = 10) + ggtitle("Top 10 Enriched GO Terms")
+
+# Barplot visualization
+barplot(
+  ego,
+  showCategory = 10,
+  drop = TRUE,
+  x = "Count"  
+) +
+  ggtitle("Top 10 Enriched GO terms - Bar Plot")
+
+```
+
+### 1. F. Interpreting Enrichment Results
+
+Interpreting the results involes identifying significantly enriched terms and 
+understanding their biological relevance. Consider factors like:
+
+* The number of genes associated with each term.
+
+* The adjusted p-values indicating statistical significance (commonly adjusted 
+using the Benjamini-Hochberg method).
+
+* The biological context of the terms in relation to your study.
+
+Functional annotation and enrichment analysis are powerful tools in bioinformatics
+that facilitate the interpretation of gene expression data by linking gene lists
+to biological functions and pathways. By using R and Bioconductor packages like
+"biomaRt" and "clusterProfiler", researchers can effectively uncover biologically
+relevant insights from their data. This chapter provided a foundational understanding
+of these processes, quipping you with the tools necessary to carry out your analyses.
+
+## 2. Gene Ontology (GO) and Pathway Analysis with cluster Profiler.
+
+Gene Ontology (GO) serve as a powerful framework for annotating genes across 
+different species, making it easier to compare and interpret functional genomics 
+data. Pathway analysis complements this by linking gene expression changes to 
+biologically relevant pathways, facilitating insights into cellular mechanisms 
+and disease processes.
+
+In this chapter, we will explore how to leverage the "cluster Profiler" package
+in R for performing Gene Ontology and pathway analysis. The "cluster Profiler" 
+package is widely recognized for its user-friendly syntax and adaptability to 
+various types of input data, including gene lists derived from differential 
+expression analyses or other high-throughput experiments.
+
+### 2. A. Understanding Gene Ontology (GO)
+
+Gene Ontology is organized into three main categories:
+
+* __Biological Process (BP)__: Series of events accomplished by one or more 
+molecular functions (e.g., cell division).
+
+* __Molecular Function (MF)__: The biochemical activities of gene products 
+(e.g., enzyme activity).
+
+* __Cellular Component (CC)__: Locations within a cell where gene products are 
+active (e.g., mitochondrion).
+
+GO annotations provide valuable context, helping researchers interpret gene 
+functions beyond mere sequence data.
+
+### 2. B. Introduction to Pathway Analysis
+
+Pathway analysis involves determining whether the genes in a specific list 
+(e.g., differentially expressed genes) are enriched in certain biological 
+pathways. Pathways can represent signalling cascades, metabolic pathways, and 
+other interconnected systems of gene regulation and activity. This analysis 
+helps in identifying which biological processes are statistically significant 
+and provides insights into potential functional interactions.
+
+### 2. C. Installing and Loading cluster Profiler
+
+To get started with Gene Ontology and pathway analysis using cluster Profiler, 
+you will first need to install the package. Ensure that R and Bioconductor are 
+installed on your machine. You can do this by executing the following commands 
+in your R environment.
+
+#### 2. C. I. Installing cluster Profiler and org.Hs.eg.db
+
+```{r 2. C. Installing cluster Profiler}
+# Install BiocManger if not already installed
+# if (!require("BiocManager", quietly = TRUE))
+#   install.packages("BiocManager")
+# BiocManager::install(version = "3.22")
+
+# Install "cluster Profiler" and "org.Hs.eg.db" for human gene anotations
+# BiocManager::install(c("clusterProfiler", "org.Hs.eg.db"))
+
+```
+
+#### 2. C. II. Load cluster Profiler and org.Hs.eg.db
+
+Next load the libraries
+
+```{r 2. C. II. Load cluster Profiler and org.Hs.eg.db}
+# Load libraries
+library(clusterProfiler)
+library(org.Hs.eg.db) # Make sure to load specific organism annotation package
+
+```
+
+### 2. D. Performing GO Analysis
+
+#### 2. D. I.  Data preparation
+
+Assuming you have a vector of gene symbols or Entrez IDs, you can use them for 
+GO analysis. Let's say we have a list of differentially expressed genes:
+
+```{r 2. D. I.  Data preparation}
+# Example gene list
+gene_list <- c("TP53", "BRCA1", "EGFR", "VEGFA", "IL6")
+gene_list
+
+```
+
+#### 2. D. II. Enriching GO Terms
+
+To perform the enrichment analysis for GO terms, use the "enrichGO()" function:
+
+```{r 2. D. II. Enriching GO Terms}
+ego <- enrichGO(gene = gene_list, 
+                OrgDb = org.Hs.eg.db, 
+                keyType = "SYMBOL", 
+                ont = "BP", # Choose among "BP", "MF", "CC"
+                pAdjustMethod = "BH",
+                qvalueCutoff = 0.05,
+                readable = TRUE)
+ego
+
+```
+
+#### 2. D. III. Visualizing GO Results
+
+To visualize the enriched GO terms, you can employ various plotting functions
+provided by cluster Profiler. A common visualization is bar plot and dot plot:
+
+```{r 2. D. III. Visualizing GO Results}
+# Bar plot of the top 10 enriched GO terms.
+barplot(ego, showCategory = 10)
+
+# Dot plot
+dotplot(ego, showCategory = 10)
+
+```
+
+These plots encapsulate the most significant GO terms, facilitating easier 
+interpretation of results.
+
+### 2. E. Pathway Analysis Using KEGG
+
+The "cluster Profiler" package also supports pathway analysis, particularly 
+with KEGG (Kyoto Encyclopedia of Genes and Genomes) pathways. To conduct a 
+pathway enrichment analysis, we will use the "enrichKEGG()" function:
+
+#### 2. E. I. Pathway analysis
+
+```{r 2. E. I. Pathway analysis}
+# Convert gene symbols to Entrez IDs (required for enrichKEGG)
+gene_df <- bitr(gene_list,
+                fromType = "SYMBOL",
+                toType = "ENTREZID",
+                OrgDb = org.Hs.eg.db)
+
+# Extract Entrez IDs
+entrez_ids <- gene_df$ENTREZID
+entrez_ids
+
+# Pathway enrichment analysis
+kegg <- enrichKEGG(gene = entrez_ids,
+                   organism = "hsa", # hsa for Homo sapiens
+                   pAdjustMethod = "BH",
+                   qvalueCutoff = 0.05)
+kegg
+
+```
+
+#### 2. E. II. Visualizing KEGG Results
+
+Similar to GO analysis, the results can be visualized through plots:
+
+```{r 2. E. II. Visualizing KEGG Results}
+# Install Libraries
+BiocManager::install(c("pathview", "png", "grid"))
+
+# Load libraries
+library(pathview)
+library(png)
+library(grid)
+
+# View KEGG pathways
+head(kegg)
+
+# Bar plot of enriched KEGG pathways
+barplot(kegg, showCategory = 10)
+
+# Pathway map visualization
+pathview(gene.data = entrez_ids, 
+         pathway.id = "hsa04110", 
+         species = "hsa")
+
+# Run Pathview (output is saved as PNG by default)
+pv_out <- pathview(gene.data = entrez_ids,
+                   pathway.id = "hsa04110",
+                   species = "hsa",
+                   out.suffix = "demo")
+
+# Check output file name
+# It follows the pattern: "hsa04110.demo.png"
+img_file <- "hsa04110.demo.png"
+
+# Read PNG image
+img <- readPNG(img_file)
+
+# Display in RStudio Plots pane
+grid::grid.raster(img)
+
+```
+
+### 2. F. Interpreting Results
+
+The results from both GO and pathway analyses provide insight into the 
+biological significance of the gene sets. By identifying enriched terms and 
+pathways, researchers can formulate hypotheses, generate new questions, and 
+guide further validation experiments.
+
+* __Biological Significance__: Reflect on how the enriched GO terms and pathways
+relate to the biological context of your research.
+
+* __Gene Interactions__: Look at networks of genes and their interactions within 
+enriched pathways to identify potential regulatory mechanisms.
+
+* __Cross-Species Comparisons__: Use the GO framework to compare findings across
+different species and understanding evolutionary conservation of biological
+functions.
+
+Gene Ontology and pathway analysis using the "clusterProfiler" package in R 
+offers bioinformaticians a comprehensive toolkit for exploring the functional 
+implications of gene expression data. Emphasizing the biological relevance of 
+findings enhances our understanding of complex biological systems. As you 
+advance your research, don't hestitate to explore additional resources and 
+methods in the ecosystem of R for bioinformatics, which continually evolves to
+meet the growing demands of high-throughput biological data analysis.
+
+## 3. Interpreting Biological Significance of Genomic Data.
+
+This chapter aims to guide you through the essential steps to interpret the 
+biological significance of genomic data using R, showcasing various libraries, 
+methodologies, and approaches.
+
+### 3. A. Understanding Genomic Data
+
+Genomic data can take various forms, including DNA sequences, gene expression 
+profiles, mutation data, and epigenetic modifications. Each type of data provides 
+insights into biological processes, disease mechanisms, and evolutionary 
+relationships. Understanding the nature of the data and its sources is crucial 
+in selecting the right analytical approaches.
+
+#### 3. A. I. Types of Genomic Data
+
+* __DNA Sequences__: The fundamental building blocks of life; they can be 
+analyzed for polymorphisms, mutations and evolutionary divergence.
+
+* __Gene Expression Data__: Quantifies the activity levels of genes, often 
+produced from techniques like RNA-seq.
+
+* __Variant Data__: Includes single nucleotide polymorphisms (SNPs), insertions,
+deletions, and structural variants that can be associated with phenotypic traits 
+or diseases.
+
+* __Epigenetic Data__: Explores chemical modifications to DNA and histones that 
+regulate gene expression without altering the underlying sequence.
+
+### 3. B. Setting Up the R Environment
+
+Before delving into data analysis, it is necessary to set up a suitable R 
+environment. This includes installing relevant packages designed for genomic 
+data analysis.
+
+#### 3. B. I. Installing Necessary Packages
+
+```{r 3. B. I. Installing Necessary Packages}
+# Install BiocManger if not already installed
+# if (!require("BiocManager", quietly = TRUE))
+#   install.packages("BiocManager")
+# BiocManager::install(version = "3.22")
+
+# Install Packages
+# BiocManager::install(c("GenomicRanges", "DESeq2", "edgeR", "ggplot2", "biomaRt"))
+
+
+```
+
+#### 3. B. II. Loading Libraries
+
+```{r 3. B. II. Loading Libraries}
+library(GenomicRanges)
+library(DESeq2)
+library(edgeR)
+library(ggplot2)
+library(biomaRt)
+
+```
+
+### 3. C. Exploratory Data Analysis (EDA)
+
+EDA helps to discern patterns, trends, and anomalies in genomic data. 
+Visualization is an essential aspect of EDA, as it facilitates an intuitive 
+understanding of complex data.
+
+#### 3. C. I. Visualizing Data
+
+Using ggplot2, we can create informative plots to visualize gene expression 
+data or mutation frequencies.
+
+```{r 3. C. I. Visualizing Data}
+# Parameters
+set.seed(42)  # reproducibility
+n_genes <- 20000   # number of genes
+n_samples <- 4     # 2 control, 2 treated
+total_counts <- 1013912
+
+# Simulate counts from a negative binomial distribution
+raw_counts <- matrix(
+  rnbinom(n_genes * n_samples, mu = 50, size = 1/0.2),  # mean=50, dispersion=0.2
+  nrow = n_genes,
+  ncol = n_samples
+)
+
+head(raw_counts)
+
+# Scale counts so total sum matches exactly 1,013,912
+scale_factor <- total_counts / sum(raw_counts)
+scale_factor
+counts_scaled <- round(raw_counts * scale_factor)
+head(counts_scaled)
+
+# Assign gene IDs
+rownames(counts_scaled) <- paste0("Gene", seq_len(n_genes))
+colnames(counts_scaled) <- c("control_rep1", "control_rep2", "treated_rep1", "treated_rep2")
+head(counts_scaled)
+
+# Create sample metadata
+colData <- data.frame(
+  condition = factor(c("control", "control", "treated", "treated")),
+  replicate = c(1, 2, 1, 2)
+)
+rownames(colData) <- colnames(counts_scaled)
+
+head(counts_scaled)
+
+write.csv(counts_scaled, file = "D:/Ajay Files/R Programming for Bioinformatics/Chapter 9/gene_expression.csv")
+
+# Example: Visualizing Gene Expression Data
+gene_expression <- read.csv("gene_expression.csv")
+head(gene_expression, n = 1)
+
+# Change X column to Genes
+names(gene_expression)[names(gene_expression) == 'X'] <- 'Genes'
+head(gene_expression, n = 1)
+
+# Load Library
+library(tidyr)
+
+# Conversion of wide data set to a long data set
+gene_expression <- pivot_longer(gene_expression, cols = c("control_rep1", "control_rep2", "treated_rep1", "treated_rep2"), 
+                                names_to = "sample", values_to = "expression_level")
+head(gene_expression, n =1)
+
+head(colData, n = 1)
+
+gene_expression <- data.frame(Genes = gene_expression$Genes,
+                              Condition = rep(colData$condition, times = 20000),
+                              Replicate = rep(colData$replicate, times = 20000),
+                              Sample = gene_expression$sample,
+                              Expression_Level = gene_expression$expression_level)
+head(gene_expression, n = 3)
+
+ggplot(gene_expression, aes(x = Sample , y = Expression_Level, fill = Condition)) + 
+  geom_boxplot() + 
+  theme_minimal() +
+  labs(title = "Gene Expression Levels Across Conditions",
+       x = "Sample",
+       y = "Expression Level",
+       fill = "Condition")
+
+```
+
+### 3. D. Analyzing Genomic Data
+
+#### 3. D. I. Differential Gene Expression Analysis
+
+One of the most common tasks in genomic analysis is identifying genes that are 
+differentially expressed under different conditions
+
+##### 3. D. I. a Using DESeq2
+
+```{r 3. D. I. a Using DESeq2}
+# Write simulated counts data into a CSV file
+write.csv(counts_scaled, file = "D:/Ajay Files/R Programming for Bioinformatics/Chapter 9/counts.csv")
+
+# Example: Visualizing Gene Expression Data
+count_data <- read.csv("counts.csv", row.names = 1, check.names = FALSE)
+head(count_data, n = 1)
+
+# Convert to numeric matrix
+counts_mat <- as.matrix(count_data)
+
+# Ensure numeric (avoid factors/characters)
+storage.mode(counts_mat) <- "numeric"
+
+# If counts were scaled and you need integers for DESeq2:
+counts_mat <- round(counts_mat)
+
+# Create DESeq2 object
+dds <- DESeqDataSetFromMatrix(countData = counts_mat, 
+                              colData = colData, 
+                              design = ~ condition)
+dds
+
+# Run the DESeq analysis
+dds <- DESeq(dds)
+dds
+results <- results(dds)
+head(results, n = 20)
+
+```
+
+##### 3. D. I. b. Filtering Results
+
+It's essential to apply a threshold to filter significant genes based  on 
+p-values and fold change.
+
+```{r 3. D. I. b. Filtering Results}
+sig_results <- rownames(results)[which(results$padj < 0.998 & abs(results$log2FoldChange)> 2)]
+sig_results
+
+```
+
+#### 3. D. II Enrichment Analysis
+
+Interpreting the biological significance of differentially expressed genes 
+often involves determining if there are specific biological pathways or 
+functions over-represented in the gene list.
+
+##### 3. D. II. a. Gene Ontology (GO) Enrichment (not relevant for simulated data)
+
+Using the biomaRt package, researchers can retrive GO annotations and perform
+enrichment analysis.
+
+```{r 3. D. II. a. Gene Ontology (GO) Enrichment (not relevant for simulated data)}
+# Get GO terms for significant genes
+# gene_ids <- rownames(sig_results)
+
+# gene_go <- getBM(attributes = c("ensembl_gene_id", "go_id", "name_1006"), 
+#                  filters = "ensembl_gene_id", 
+#                  values = "gene_ids", 
+#                  mart = useMart("ensembl"))
+
+
+```
+
+#### 3. D. III. Pathway Analysis (not relevant for simulated data)
+
+Using packages like clusterProfiler, researchers can explore pathways that are 
+significantly impacted by their findings.
+
+```{r 3. D. III. Pathway Analysis (not relevant for simulated data)}
+# Load library
+# library(clusterProfiler)
+
+# Using KEGG for pathway analysis
+# kk <- enrichKEGG(gene = gene_ids, organism = "hsa")
+# dotplot(kk)
+
+```
+
+### 3. E. Visualization of Results
+
+Visualization of genomic data analysis results is crucial for interpreting and 
+communicating findings.
+
+#### 3. E. I. Heat maps
+
+Identifying clusters of co-expressed genes can be effectively visualized using 
+heat maps.
+
+```{r 3. E. I. Heat maps}
+# Load Library
+library(pheatmap)
+
+# Heat map
+pheatmap(assay(dds)[sig_results,], cluster_rows = TRUE, cluster_cols = TRUE)
+
+```
+
+#### 3. E. II. Volcano Plots
+
+A volcano plot helps to visualize the significance and magnitude of changes 
+in a single plot
+
+```{r 3. E. II. Volcano Plots}
+volcano_data <- as.data.frame(results)
+head(volcano_data)
+
+ggplot(volcano_data, aes(x = log2FoldChange, y = -log10(pvalue))) + 
+  geom_point(alpha = 0.5, size = 1.5) + 
+  geom_point(data = subset(volcano_data, padj < 0.998 & abs(log2FoldChange) > 1.5), color = "red") + 
+  labs(title = "Volcano Plot of Differential Gene Expression")
+
+```
+
+Interpreting the biological significance of genomic data is a complex yet 
+rewarding endeavor that provides crucial insights into biological processes. 
+Leveraging the power of R, this chapter has presented a structured approach to 
+genomic data analysis - from data preparation and exploratory analysis to 
+advanced methods for differential expression and enrichment analysis. By 
+applying these techniques and tools, researchers can uncover the layers of 
+complexity within genomic data, leading to greater understanding and 
+advancement in the fields of biology and medicine.
+
+## 4. Session Info
+
+```{r 4. Session Info}
+devtools::session_info()
+Sys.Date()
+
+```

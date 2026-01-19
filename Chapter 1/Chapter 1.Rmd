@@ -1,0 +1,96 @@
+---
+title: "Chapter 1 Introduction to R for Bioinformatics"
+author: "Sasha Ajay Malkani"
+date: "2025-12-12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1. Installing Bioconductor
+
+```{r 1. Installing Bioconductor}
+# if(!requireNamespace("BiocManager", quietly = TRUE))
+#    installed.packages("BiocManager")BiocManager::install()
+
+```
+
+## 2. Install specific bioinformatics Packages
+
+```{r 2. Install specific bioinformatics Packages}
+# BiocManager::install("GenomicRanges")
+# BiocManager::install("DESeq2")
+# BiocManager::install("edgeR")
+
+```
+
+## 3. Installing Additional Useful Packages
+
+### 3. A. Tidyverse - A collection of R packages for Data Science
+
+```{r 3. A. Tidyverse - A collection of R packages for Data Science}
+# install.packages("tidyverse")
+
+```
+
+### 3. B. Data Visualization
+
+```{r 3. B. Data Visualization}
+# install.packages("ggplot2")
+
+```
+
+### 3. C. Data Manipulation and Transformation 
+
+```{r 3. C. Data Manipulation and Transformation}
+# install.packages("dpyr")
+
+```
+
+### 3. D. Interactive Visualizations
+
+```{r 3. D. Interactive Visualizations}
+# install.packages("plotly")
+
+```
+
+## 4. Integrate version control with Git into your Bioinformatics workflow
+
+[https://git-scm.com/](https://git-scm.com/)
+
+```{r 4. Integrate version control with Git into your Bioinformatics workflow}
+# [https://git-scm.com/](https://git-scm.com/)
+
+```
+
+## 5. Testing Your Environment
+
+### 5. A. Loading Packages
+
+```{r 5. A. Loading Packages}
+library(GenomicRanges)
+library(DESeq2)
+
+```
+
+### 5. B. Check Versions
+
+```{r 5. B. Check Versions}
+packageVersion("GenomicRanges")
+packageVersion("DESeq2")
+
+```
+
+## 6. Session Info
+
+```{r 6. Session Info}
+devtools::session_info()
+Sys.Date()
+
+```
+
+
+
+
