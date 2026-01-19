@@ -4,7 +4,7 @@ This repository is about understanding and applying R programming tools and tech
 
 ## Repository Layout
 
-This repository is structured in 11 Chapter Folders plus a Glossary Folder of biological and genomic terminology. Within each folder you have a set of R programs in R script (.R), R Markdown (.Rmd) and HTML format (.html). The files can be downloaded and the html files can be viewed in a web browser after downloading.
+This repository is structured in 11 Chapter Folders plus a Glossary Folder of biological and genomic terminology. Within each folder you have a set of R programs in __R script (.R)__, __R Markdown (.Rmd)__ and __HTML format (.html)__. The files can be downloaded and the html files can be viewed in a web browser after downloading.
 
 ## Chapter Content
 
