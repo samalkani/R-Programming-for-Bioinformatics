@@ -31,7 +31,7 @@ This repository is structured in 11 Chapter Folders plus a Glossary Folder of bi
 5. __Chapter 5 - Data Visualization for Bioinformatics__
 
 * Creating Effective Plots for Biological Data with __GGPLOT2__
-* Visualizing Genomic Data with __GVIZ)__ and Other Tools
+* Visualizing Genomic Data with __GVIZ__ and Other Tools
    
 6. __Chapter 6 - Handling and Preprocessing Sequencing Data__
 
@@ -40,7 +40,7 @@ This repository is structured in 11 Chapter Folders plus a Glossary Folder of bi
    
 7. __Chapter 7 - Gene Expression Analysis - Microarrays__
 
-* Preprocessing Microarray Data with AFFY and OLIGO
+* Preprocessing Microarray Data with __AFFY__ and __OLIGO__
 * Differential Expression Analysis with __LIMMA__
    
 8. __Chapter 8 - Gene Expression Analysis - RNA-Seq__
